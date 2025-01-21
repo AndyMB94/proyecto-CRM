@@ -1,6 +1,9 @@
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.exceptions import AuthenticationFailed
 from django.contrib.auth import authenticate
+from rest_framework import serializers
+from .models import Lead
+
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
@@ -42,3 +45,11 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             "telefono": user.telefono,
         }
         return data
+
+class LeadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Lead
+        fields = [
+            'id', 'nombre_lead', 'nombre', 'apellido', 'numero_movil', 
+            'estado', 'origen', 'dueno', 'fecha_creacion'
+        ]

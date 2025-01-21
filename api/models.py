@@ -126,6 +126,13 @@ class TipoPlanContrato(models.Model):
     def __str__(self):
         return self.descripcion
 
+# Sector Model
+class Sector(models.Model):
+    nombre_sector = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.nombre_sector
+
 # Lead Model
 class Lead(models.Model):
     nombre_lead = models.CharField(max_length=100)
@@ -146,7 +153,7 @@ class Lead(models.Model):
     tipo_base = models.ForeignKey(TipoBase, on_delete=models.SET_NULL, null=True, blank=True)
     plan_contrato = models.ForeignKey(TipoPlanContrato, on_delete=models.SET_NULL, null=True, blank=True)
     distrito = models.ForeignKey(Distrito, on_delete=models.SET_NULL, null=True, blank=True)
-    sector = models.CharField(max_length=100, blank=True, null=True)
+    sector = models.ForeignKey(Sector, on_delete=models.SET_NULL, null=True, blank=True)
     direccion = models.CharField(max_length=255, blank=True, null=True)
     etiquetas = models.TextField(blank=True, null=True)
     sitio_web = models.URLField(max_length=100, blank=True, null=True)
