@@ -5,10 +5,12 @@ from django.utils.translation import gettext_lazy as _
 # Custom User Model
 class CustomUser(AbstractUser):
     email = models.EmailField(_('email address'), unique=True)
+    nombres = models.CharField(max_length=100, blank=True, null=True)  # Nuevo campo
+    apellidos = models.CharField(max_length=100, blank=True, null=True)  # Nuevo campo
     telefono = models.CharField(max_length=15, blank=True, null=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
-    # Define username como identificador principal y será un correo
+    # Define username como identificador principal
     USERNAME_FIELD = 'username'
     REQUIRED_FIELDS = ['email']  # El correo sigue siendo obligatorio
 

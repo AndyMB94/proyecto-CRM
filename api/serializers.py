@@ -10,6 +10,9 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         # Agrega campos adicionales al token
         token['email'] = user.email
         token['is_staff'] = user.is_staff
+        token['nombres'] = user.nombres  # Incluye el nombre
+        token['apellidos'] = user.apellidos  # Incluye el apellido
+        token['telefono'] = user.telefono  # Incluye el teléfono
         return token
 
     def validate(self, attrs):
@@ -28,5 +31,14 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         if not user.is_active:
             raise AuthenticationFailed("Cuenta inactiva", code='authorization')
 
-        attrs['user'] = user
-        return super().validate(attrs)
+        # Retorna el token generado
+        data = super().validate(attrs)
+        data['user'] = {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "nombres": user.nombres,
+            "apellidos": user.apellidos,
+            "telefono": user.telefono,
+        }
+        return data
