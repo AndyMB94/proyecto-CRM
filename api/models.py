@@ -135,34 +135,27 @@ class Sector(models.Model):
 
 # Lead Model
 class Lead(models.Model):
-    nombre_lead = models.CharField(max_length=100)
-    nombre = models.CharField(max_length=100)
-    apellido = models.CharField(max_length=100)
+    nombre_lead = models.CharField(max_length=100)  # Este es requerido para identificar un lead
+    nombre = models.CharField(max_length=100)  # Obligatorio
+    apellido = models.CharField(max_length=100)  # Obligatorio
     numero_movil = models.CharField(max_length=15, blank=True, null=True)
     numero_trabajo = models.CharField(max_length=15, blank=True, null=True)
-    numero_fax = models.CharField(max_length=15, blank=True, null=True)
-    nombre_compania = models.CharField(max_length=100, blank=True, null=True)
+    nombre_compania = models.CharField(max_length=100)  # Obligatorio
     correo = models.EmailField(max_length=100, blank=True, null=True)
     cargo = models.CharField(max_length=100, blank=True, null=True)
     estado = models.ForeignKey(Estado, on_delete=models.CASCADE)
-    origen = models.ForeignKey(Origen, on_delete=models.CASCADE)
+    origen = models.ForeignKey(Origen, on_delete=models.CASCADE)  # Obligatorio
     subtipo_contacto = models.ForeignKey(SubtipoContacto, on_delete=models.CASCADE)
-    resultado_cobertura = models.ForeignKey(ResultadoCobertura, on_delete=models.SET_NULL, null=True, blank=True)
-    transferencia = models.ForeignKey(Transferencia, on_delete=models.SET_NULL, null=True, blank=True)
-    tipo_vivienda = models.ForeignKey(TipoVivienda, on_delete=models.SET_NULL, null=True, blank=True)
+    resultado_cobertura = models.ForeignKey(ResultadoCobertura, on_delete=models.PROTECT)  # Obligatorio
+    transferencia = models.ForeignKey(Transferencia, on_delete=models.PROTECT)  # Obligatorio
+    tipo_vivienda = models.ForeignKey(TipoVivienda, on_delete=models.PROTECT)  # Obligatorio
     tipo_base = models.ForeignKey(TipoBase, on_delete=models.SET_NULL, null=True, blank=True)
     plan_contrato = models.ForeignKey(TipoPlanContrato, on_delete=models.SET_NULL, null=True, blank=True)
-    distrito = models.ForeignKey(Distrito, on_delete=models.SET_NULL, null=True, blank=True)
+    distrito = models.ForeignKey(Distrito, on_delete=models.PROTECT)  # Obligatorio (incluye departamento y provincia)
     sector = models.ForeignKey(Sector, on_delete=models.SET_NULL, null=True, blank=True)
-    direccion = models.CharField(max_length=255, blank=True, null=True)
+    direccion = models.CharField(max_length=255)  # Obligatorio
     etiquetas = models.TextField(blank=True, null=True)
-    sitio_web = models.URLField(max_length=100, blank=True, null=True)
-    skype = models.CharField(max_length=100, blank=True, null=True)
-    facebook = models.URLField(max_length=100, blank=True, null=True)
-    twitter = models.URLField(max_length=100, blank=True, null=True)
-    linkedin = models.URLField(max_length=100, blank=True, null=True)
-    descripcion = models.TextField(blank=True, null=True)
-    coordenadas = models.CharField(max_length=100, blank=True, null=True)
+    coordenadas = models.CharField(max_length=100)  # Obligatorio
     dueno = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 

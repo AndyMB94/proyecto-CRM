@@ -46,10 +46,33 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         }
         return data
 
+
 class LeadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lead
         fields = [
-            'id', 'nombre_lead', 'nombre', 'apellido', 'numero_movil', 
-            'estado', 'origen', 'dueno', 'fecha_creacion'
+            'id',
+            'nombre_lead',
+            'nombre',
+            'apellido',
+            'numero_movil',
+            'numero_trabajo',
+            'nombre_compania',
+            'correo',
+            'cargo',
+            'estado',
+            'origen',
+            'subtipo_contacto',
+            'resultado_cobertura',
+            'transferencia',
+            'tipo_vivienda',
+            'tipo_base',
+            'plan_contrato',
+            'distrito',
+            'sector',
+            'direccion',
+            'etiquetas',
+            'coordenadas',
+            'dueno',
+            'fecha_creacion',
         ]
