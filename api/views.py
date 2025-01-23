@@ -19,7 +19,7 @@ class LeadListCreateView(APIView):
     Endpoint para listar y crear leads.
     Requiere autenticación.
     """
-    permission_classes = [IsAuthenticated]  # Se simplifica la clase de permisos
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         """
@@ -43,7 +43,7 @@ class LeadListCreateView(APIView):
         serializer = LeadSerializer(data=request.data)
         if serializer.is_valid():
             try:
-                serializer.save(dueno=request.user)  # Asigna el dueño al usuario autenticado
+                serializer.save(dueno=request.user)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             except Exception as e:
                 return Response(
@@ -58,7 +58,7 @@ class LeadDetailView(APIView):
     Endpoint para obtener, actualizar o eliminar un lead específico.
     Requiere autenticación.
     """
-    permission_classes = [IsAuthenticated]  # Se simplifica la clase de permisos
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         """
@@ -120,3 +120,26 @@ class LeadDetailView(APIView):
                 {"error": f"Error al eliminar el lead: {str(e)}"},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+
+class LeadSearchView(APIView):
+    """
+    Endpoint para buscar leads por número de móvil.
+    Requiere autenticación.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        query = request.query_params.get('numero_movil', None)
+        if query is None:
+            return Response(
+                {"error": "Se requiere el parámetro 'numero_movil' para buscar leads."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        leads = Lead.objects.filter(numero_movil__icontains=query)
+        if not leads.exists():
+            return Response({"message": "No se encontraron leads con ese número de móvil."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = LeadSerializer(leads, many=True)
+        return Response(serializer.data)
