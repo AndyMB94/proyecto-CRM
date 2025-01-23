@@ -1,10 +1,10 @@
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .serializers import CustomTokenObtainPairSerializer, LeadSerializer
+from .serializers import CustomTokenObtainPairSerializer, LeadSerializer, HistorialEstadoSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Lead
-from rest_framework.permissions import IsAuthenticated
+from .models import Lead, HistorialEstado
+from rest_framework.permissions import IsAuthenticated, DjangoModelPermissions
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -17,9 +17,9 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 class LeadListCreateView(APIView):
     """
     Endpoint para listar y crear leads.
-    Requiere autenticación.
+    Requiere autenticación y permisos de modelo.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, DjangoModelPermissions]
 
     def get_queryset(self):
         """
@@ -55,9 +55,9 @@ class LeadListCreateView(APIView):
 class LeadDetailView(APIView):
     """
     Endpoint para obtener, actualizar o eliminar un lead específico.
-    Requiere autenticación.
+    Requiere autenticación y permisos de modelo.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, DjangoModelPermissions]
 
     def get_queryset(self):
         """
@@ -87,15 +87,29 @@ class LeadDetailView(APIView):
 
     def put(self, request, pk):
         """
-        Actualiza un lead específico.
+        Actualiza un lead específico y registra cambios en el estado.
         """
         lead = self.get_object(pk)
         if lead is None:
             return Response({"error": "Lead no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+        
+        estado_anterior = lead.estado  # Guardar el estado actual antes de los cambios
+
         serializer = LeadSerializer(lead, data=request.data)
         if serializer.is_valid():
             try:
-                serializer.save()
+                serializer.save()  # Guardar los cambios del lead
+
+                # Registrar el cambio de estado si es necesario
+                estado_nuevo = lead.estado  # Estado después de guardar
+                if estado_anterior != estado_nuevo:
+                    HistorialEstado.objects.create(
+                        lead=lead,
+                        estado_anterior=estado_anterior,
+                        estado_nuevo=estado_nuevo,
+                        usuario=request.user  # Usuario que realizó el cambio
+                    )
+
                 return Response(serializer.data)
             except Exception as e:
                 return Response(
@@ -124,19 +138,43 @@ class LeadDetailView(APIView):
 class LeadSearchByNumberView(APIView):
     """
     Endpoint para buscar leads por número de móvil.
-    Requiere autenticación.
+    Requiere autenticación y permisos de modelo.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, DjangoModelPermissions]
+
+    def get_queryset(self):
+        """
+        Devuelve el conjunto de datos de leads.
+        """
+        return Lead.objects.all()
 
     def get(self, request, numero_movil):
         """
         Busca leads cuyo número de móvil contenga la cadena proporcionada.
         """
-        leads = Lead.objects.filter(numero_movil__icontains=numero_movil)
+        queryset = self.get_queryset()
+        leads = queryset.filter(numero_movil__icontains=numero_movil)
         if not leads.exists():
             return Response(
                 {"message": "No se encontraron leads con ese número de móvil."},
                 status=status.HTTP_404_NOT_FOUND
             )
         serializer = LeadSerializer(leads, many=True)
+        return Response(serializer.data)
+
+class HistorialEstadoView(APIView):
+    """
+    Endpoint para listar el historial de cambios de estado de un lead.
+    """
+    permission_classes = [IsAuthenticated, DjangoModelPermissions]
+
+    def get_queryset(self, lead_id):
+        return HistorialEstado.objects.filter(lead_id=lead_id)
+
+    def get(self, request, lead_id):
+        """
+        Devuelve el historial de cambios de estado para un lead específico.
+        """
+        queryset = self.get_queryset(lead_id)
+        serializer = HistorialEstadoSerializer(queryset, many=True)
         return Response(serializer.data)

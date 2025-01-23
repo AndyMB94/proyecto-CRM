@@ -191,3 +191,20 @@ class Contrato(models.Model):
 
     def __str__(self):
         return self.nombre_contrato
+
+# HistorialEstado Model
+class HistorialEstado(models.Model):
+    lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name="historial_estados")  # Relación con Lead
+    estado_anterior = models.ForeignKey(
+        Estado, on_delete=models.SET_NULL, null=True, blank=True, related_name="estado_anterior"
+    )  # Estado antes del cambio
+    estado_nuevo = models.ForeignKey(
+        Estado, on_delete=models.CASCADE, related_name="estado_nuevo"
+    )  # Estado después del cambio
+    usuario = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL, null=True, blank=True
+    )  # Usuario que realizó el cambio
+    fecha_cambio = models.DateTimeField(auto_now_add=True)  # Fecha y hora del cambio
+
+    def __str__(self):
+        return f"Lead: {self.lead.nombre_lead} | Estado: {self.estado_anterior} -> {self.estado_nuevo}"

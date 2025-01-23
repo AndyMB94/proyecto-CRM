@@ -2,7 +2,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.exceptions import AuthenticationFailed
 from django.contrib.auth import authenticate
 from rest_framework import serializers
-from .models import Lead
+from .models import Lead, HistorialEstado
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -76,3 +76,12 @@ class LeadSerializer(serializers.ModelSerializer):
             'dueno',
             'fecha_creacion',
         ]
+
+class HistorialEstadoSerializer(serializers.ModelSerializer):
+    estado_anterior = serializers.StringRelatedField()
+    estado_nuevo = serializers.StringRelatedField()
+    usuario = serializers.StringRelatedField()
+
+    class Meta:
+        model = HistorialEstado
+        fields = ['id', 'lead', 'estado_anterior', 'estado_nuevo', 'usuario', 'fecha_cambio']
