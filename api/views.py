@@ -24,7 +24,6 @@ class LeadListCreateView(APIView):
     def get_queryset(self):
         """
         Devuelve el conjunto de datos de leads.
-        Se puede personalizar para filtrar por usuario o criterio.
         """
         return Lead.objects.all()
 
@@ -122,24 +121,22 @@ class LeadDetailView(APIView):
             )
 
 
-class LeadSearchView(APIView):
+class LeadSearchByNumberView(APIView):
     """
     Endpoint para buscar leads por número de móvil.
     Requiere autenticación.
     """
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        query = request.query_params.get('numero_movil', None)
-        if query is None:
-            return Response(
-                {"error": "Se requiere el parámetro 'numero_movil' para buscar leads."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        leads = Lead.objects.filter(numero_movil__icontains=query)
+    def get(self, request, numero_movil):
+        """
+        Busca leads cuyo número de móvil contenga la cadena proporcionada.
+        """
+        leads = Lead.objects.filter(numero_movil__icontains=numero_movil)
         if not leads.exists():
-            return Response({"message": "No se encontraron leads con ese número de móvil."}, status=status.HTTP_404_NOT_FOUND)
-
+            return Response(
+                {"message": "No se encontraron leads con ese número de móvil."},
+                status=status.HTTP_404_NOT_FOUND
+            )
         serializer = LeadSerializer(leads, many=True)
         return Response(serializer.data)

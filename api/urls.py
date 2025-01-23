@@ -1,5 +1,7 @@
 from django.urls import path
-from .views import CustomTokenObtainPairView, LeadListCreateView, LeadDetailView, LeadSearchView
+from .views import (
+    CustomTokenObtainPairView, LeadListCreateView, LeadDetailView, LeadSearchByNumberView
+)
 from rest_framework_simplejwt.views import TokenRefreshView
 
 urlpatterns = [
@@ -7,5 +9,5 @@ urlpatterns = [
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('leads/', LeadListCreateView.as_view(), name='lead_list_create'),  # Listar y crear leads
     path('leads/<int:pk>/', LeadDetailView.as_view(), name='lead_detail'),  # Detalle, actualizar y eliminar lead
-    path('leads/search/', LeadSearchView.as_view(), name='lead_search'),  # Buscar leads por número de móvil
+    path('leads/search/<str:numero_movil>/', LeadSearchByNumberView.as_view(), name='lead_search_by_number'),  # Buscar leads por número
 ]
