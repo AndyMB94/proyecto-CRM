@@ -134,8 +134,8 @@ admin.site.register(TipoDocumento, TipoDocumentoAdmin)
 
 # Configuración para Contrato
 class ContratoAdmin(admin.ModelAdmin):
-    list_display = ('id', 'nombre_contrato', 'lead', 'fecha_inicio', 'fecha_fin', 'estado')
-    list_filter = ('estado', 'fecha_inicio', 'fecha_fin')
+    list_display = ('id', 'nombre_contrato', 'lead', 'fecha_inicio', 'observaciones')
+    list_filter = ('fecha_inicio',)
     search_fields = ('nombre_contrato', 'lead__nombre')
     ordering = ('fecha_inicio',)
 

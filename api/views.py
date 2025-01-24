@@ -20,10 +20,12 @@ from .models import (
     Estado,
     Sector,
     Origen,
-    CustomUser
+    CustomUser,
+    Contrato
 )
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
+from django.utils.timezone import now
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -81,6 +83,43 @@ class LeadListCreateView(APIView):
                 return Response({"error": f"Error al guardar el lead: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class ConvertLeadToContractView(APIView):
+    """
+    Endpoint para convertir un lead en un contrato.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, lead_id):
+        """
+        Convierte un lead en un contrato.
+        """
+        try:
+            lead = Lead.objects.get(id=lead_id)
+        except Lead.DoesNotExist:
+            return Response({"error": "Lead no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+        nombre_contrato = f"{lead.nombre} {lead.apellido}"
+        fecha_inicio = now().date()
+        observaciones = request.data.get('observaciones', '')
+
+        try:
+            contrato = Contrato.objects.create(
+                nombre_contrato=nombre_contrato,
+                lead=lead,
+                fecha_inicio=fecha_inicio,
+                observaciones=observaciones
+            )
+            return Response({
+                "message": "Lead convertido a contrato con éxito.",
+                "contrato": {
+                    "id": contrato.id,
+                    "nombre_contrato": contrato.nombre_contrato,
+                    "fecha_inicio": contrato.fecha_inicio,
+                    "observaciones": contrato.observaciones
+                }
+            }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({"error": f"Error al convertir lead a contrato: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
 class LeadDetailView(APIView):
     """
@@ -241,9 +280,12 @@ class GenericListView(APIView):
             "estado": Estado,
             "sector": Sector,
             "origen": Origen,
+            "departamento": Departamento,  # Añadido para departamentos
+            "tipo-contacto": TipoContacto,  # Añadido para tipos de contacto
         }
         model = models_map.get(model_name)
         if not model:
             return Response({"error": "Modelo no encontrado."}, status=status.HTTP_404_NOT_FOUND)
         data = [{"id": obj.id, "nombre": str(obj)} for obj in model.objects.all()]
         return Response(data, status=status.HTTP_200_OK)
+

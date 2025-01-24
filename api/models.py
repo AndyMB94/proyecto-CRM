@@ -184,13 +184,12 @@ class TipoDocumento(models.Model):
 class Contrato(models.Model):
     nombre_contrato = models.CharField(max_length=100)
     lead = models.ForeignKey(Lead, on_delete=models.CASCADE)
-    fecha_inicio = models.DateField()
-    fecha_fin = models.DateField(blank=True, null=True)
-    estado = models.ForeignKey(Estado, on_delete=models.CASCADE)
+    fecha_inicio = models.DateField(auto_now_add=True)  # Se establece automáticamente al crear
     observaciones = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return self.nombre_contrato
+
 
 # HistorialEstado Model
 class HistorialEstado(models.Model):
