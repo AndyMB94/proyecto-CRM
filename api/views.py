@@ -21,7 +21,8 @@ from .models import (
     Sector,
     Origen,
     CustomUser,
-    Contrato
+    Contrato,
+    TipoPlanContrato
 )
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
@@ -282,6 +283,7 @@ class GenericListView(APIView):
             "origen": Origen,
             "departamento": Departamento,  # Añadido para departamentos
             "tipo-contacto": TipoContacto,  # Añadido para tipos de contacto
+            "tipo-plan-contrato": TipoPlanContrato, # Añadido para tipos de planes de contrato
         }
         model = models_map.get(model_name)
         if not model:
