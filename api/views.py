@@ -117,10 +117,18 @@ class ConvertLeadToContractView(APIView):
                     "nombre_contrato": contrato.nombre_contrato,
                     "fecha_inicio": contrato.fecha_inicio,
                     "observaciones": contrato.observaciones
+                },
+                "lead": {
+                    "id": lead.id,
+                    "nombre_lead": lead.nombre_lead,
+                    "numero_movil": lead.numero_movil,  # Se añade el número móvil
+                    "nombre": lead.nombre,
+                    "apellido": lead.apellido
                 }
             }, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({"error": f"Error al convertir lead a contrato: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
 
 class LeadDetailView(APIView):
     """
