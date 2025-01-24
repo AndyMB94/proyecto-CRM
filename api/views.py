@@ -228,6 +228,34 @@ class OwnerListView(APIView):
         ]
         return Response(data, status=status.HTTP_200_OK)
 
+class ContratoListView(APIView):
+    """
+    Endpoint para listar todos los contratos.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """
+        Devuelve una lista de todos los contratos.
+        """
+        contratos = Contrato.objects.all()
+        data = [
+            {
+                "id": contrato.id,
+                "nombre_contrato": contrato.nombre_contrato,
+                "fecha_inicio": contrato.fecha_inicio,
+                "observaciones": contrato.observaciones,
+                "lead": {
+                    "id": contrato.lead.id,
+                    "nombre_lead": contrato.lead.nombre_lead,
+                    "nombre": contrato.lead.nombre,
+                    "apellido": contrato.lead.apellido,
+                },
+            }
+            for contrato in contratos
+        ]
+        return Response(data, status=status.HTTP_200_OK)
+
 
 class ProvinciaByDepartamentoView(APIView):
     """
