@@ -19,7 +19,8 @@ from .models import (
     TipoBase,
     Estado,
     Sector,
-    Origen
+    Origen,
+    CustomUser
 )
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
@@ -166,6 +167,26 @@ class HistorialEstadoView(APIView):
         queryset = self.get_queryset(lead_id)
         serializer = HistorialEstadoSerializer(queryset, many=True)
         return Response(serializer.data)
+
+class OwnerListView(APIView):
+    """
+    Endpoint para listar todos los dueños (usuarios del modelo CustomUser).
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        owners = CustomUser.objects.all()
+        data = [
+            {
+                "id": owner.id,
+                "username": owner.username,
+                "email": owner.email,
+                "nombres": owner.nombres,
+                "apellidos": owner.apellidos,
+            }
+            for owner in owners
+        ]
+        return Response(data, status=status.HTTP_200_OK)
 
 
 class ProvinciaByDepartamentoView(APIView):
