@@ -3,8 +3,9 @@ from .serializers import CustomTokenObtainPairSerializer, LeadSerializer, Histor
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Lead, HistorialEstado
+from .models import Lead, Documento, HistorialEstado
 from rest_framework.permissions import IsAuthenticated, DjangoModelPermissions
+from rest_framework.exceptions import ValidationError
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -37,13 +38,37 @@ class LeadListCreateView(APIView):
 
     def post(self, request):
         """
-        Crea un nuevo lead. El usuario autenticado se asigna como dueño.
+        Crea un nuevo lead y su documento relacionado.
         """
         serializer = LeadSerializer(data=request.data)
         if serializer.is_valid():
             try:
-                serializer.save(dueno=request.user)
+                # Crear el Lead
+                lead = serializer.save(dueno=request.user)
+
+                # Extraer datos de tipo_documento y nro_documento
+                tipo_documento_id = request.data.get('tipo_documento')
+                nro_documento = request.data.get('nro_documento')
+
+                # Validar existencia de tipo_documento y nro_documento
+                if tipo_documento_id and nro_documento:
+                    if Documento.objects.filter(numero_documento=nro_documento).exists():
+                        raise ValidationError(
+                            {"nro_documento": "El número de documento ya está registrado."}
+                        )
+
+                    # Crear el Documento asociado
+                    Documento.objects.create(
+                        tipo_documento_id=tipo_documento_id,
+                        numero_documento=nro_documento,
+                        lead=lead,
+                        user=request.user
+                    )
+
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+            except ValidationError as ve:
+                return Response({"error": ve.detail}, status=status.HTTP_400_BAD_REQUEST)
             except Exception as e:
                 return Response(
                     {"error": f"Error al guardar el lead: {str(e)}"},
