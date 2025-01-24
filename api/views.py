@@ -3,7 +3,7 @@ from .serializers import CustomTokenObtainPairSerializer, LeadSerializer, Histor
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Lead, Documento, HistorialEstado
+from .models import Lead, Documento, HistorialEstado, Departamento, Provincia, Distrito, TipoContacto, SubtipoContacto
 from rest_framework.permissions import IsAuthenticated, DjangoModelPermissions
 from rest_framework.exceptions import ValidationError
 
@@ -117,7 +117,7 @@ class LeadDetailView(APIView):
         lead = self.get_object(pk)
         if lead is None:
             return Response({"error": "Lead no encontrado"}, status=status.HTTP_404_NOT_FOUND)
-        
+
         estado_anterior = lead.estado  # Guardar el estado actual antes de los cambios
 
         serializer = LeadSerializer(lead, data=request.data)
@@ -187,6 +187,7 @@ class LeadSearchByNumberView(APIView):
         serializer = LeadSerializer(leads, many=True)
         return Response(serializer.data)
 
+
 class HistorialEstadoView(APIView):
     """
     Endpoint para listar el historial de cambios de estado de un lead.
@@ -203,3 +204,39 @@ class HistorialEstadoView(APIView):
         queryset = self.get_queryset(lead_id)
         serializer = HistorialEstadoSerializer(queryset, many=True)
         return Response(serializer.data)
+
+
+class ProvinciaByDepartamentoView(APIView):
+    """
+    Devuelve las provincias asociadas a un departamento.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, departamento_id):
+        provincias = Provincia.objects.filter(departamento_id=departamento_id)
+        data = [{"id": provincia.id, "nombre": provincia.nombre_provincia} for provincia in provincias]
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class DistritoByProvinciaView(APIView):
+    """
+    Devuelve los distritos asociados a una provincia.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, provincia_id):
+        distritos = Distrito.objects.filter(provincia_id=provincia_id)
+        data = [{"id": distrito.id, "nombre": distrito.nombre_distrito} for distrito in distritos]
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class SubtipoContactoByTipoContactoView(APIView):
+    """
+    Devuelve los subtipos de contacto asociados a un tipo de contacto.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, tipo_contacto_id):
+        subtipos = SubtipoContacto.objects.filter(tipo_contacto_id=tipo_contacto_id)
+        data = [{"id": subtipo.id, "descripcion": subtipo.descripcion} for subtipo in subtipos]
+        return Response(data, status=status.HTTP_200_OK)
