@@ -3,8 +3,25 @@ from .serializers import CustomTokenObtainPairSerializer, LeadSerializer, Histor
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Lead, Documento, HistorialEstado, Departamento, Provincia, Distrito, TipoContacto, SubtipoContacto
-from rest_framework.permissions import IsAuthenticated, DjangoModelPermissions
+from .models import (
+    Lead,
+    Documento,
+    HistorialEstado,
+    Departamento,
+    Provincia,
+    Distrito,
+    TipoContacto,
+    SubtipoContacto,
+    TipoDocumento,
+    ResultadoCobertura,
+    Transferencia,
+    TipoVivienda,
+    TipoBase,
+    Estado,
+    Sector,
+    Origen
+)
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
 
 
@@ -18,9 +35,9 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 class LeadListCreateView(APIView):
     """
     Endpoint para listar y crear leads.
-    Requiere autenticación y permisos de modelo.
+    Requiere autenticación.
     """
-    permission_classes = [IsAuthenticated, DjangoModelPermissions]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         """
@@ -43,67 +60,43 @@ class LeadListCreateView(APIView):
         serializer = LeadSerializer(data=request.data)
         if serializer.is_valid():
             try:
-                # Crear el Lead
                 lead = serializer.save(dueno=request.user)
-
-                # Extraer datos de tipo_documento y nro_documento
                 tipo_documento_id = request.data.get('tipo_documento')
                 nro_documento = request.data.get('nro_documento')
 
-                # Validar existencia de tipo_documento y nro_documento
                 if tipo_documento_id and nro_documento:
                     if Documento.objects.filter(numero_documento=nro_documento).exists():
-                        raise ValidationError(
-                            {"nro_documento": "El número de documento ya está registrado."}
-                        )
-
-                    # Crear el Documento asociado
+                        raise ValidationError({"nro_documento": "El número de documento ya está registrado."})
                     Documento.objects.create(
                         tipo_documento_id=tipo_documento_id,
                         numero_documento=nro_documento,
                         lead=lead,
                         user=request.user
                     )
-
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
-
             except ValidationError as ve:
                 return Response({"error": ve.detail}, status=status.HTTP_400_BAD_REQUEST)
             except Exception as e:
-                return Response(
-                    {"error": f"Error al guardar el lead: {str(e)}"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                return Response({"error": f"Error al guardar el lead: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class LeadDetailView(APIView):
     """
     Endpoint para obtener, actualizar o eliminar un lead específico.
-    Requiere autenticación y permisos de modelo.
     """
-    permission_classes = [IsAuthenticated, DjangoModelPermissions]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """
-        Devuelve el conjunto de datos de leads.
-        """
         return Lead.objects.all()
 
     def get_object(self, pk):
-        """
-        Intenta recuperar un lead por su clave primaria (pk).
-        Retorna None si no existe.
-        """
         try:
             return self.get_queryset().get(pk=pk)
         except Lead.DoesNotExist:
             return None
 
     def get(self, request, pk):
-        """
-        Devuelve los detalles de un lead específico.
-        """
         lead = self.get_object(pk)
         if lead is None:
             return Response({"error": "Lead no encontrado"}, status=status.HTTP_404_NOT_FOUND)
@@ -111,42 +104,28 @@ class LeadDetailView(APIView):
         return Response(serializer.data)
 
     def put(self, request, pk):
-        """
-        Actualiza un lead específico y registra cambios en el estado.
-        """
         lead = self.get_object(pk)
         if lead is None:
             return Response({"error": "Lead no encontrado"}, status=status.HTTP_404_NOT_FOUND)
-
-        estado_anterior = lead.estado  # Guardar el estado actual antes de los cambios
-
+        estado_anterior = lead.estado
         serializer = LeadSerializer(lead, data=request.data)
         if serializer.is_valid():
             try:
-                serializer.save()  # Guardar los cambios del lead
-
-                # Registrar el cambio de estado si es necesario
-                estado_nuevo = lead.estado  # Estado después de guardar
+                serializer.save()
+                estado_nuevo = lead.estado
                 if estado_anterior != estado_nuevo:
                     HistorialEstado.objects.create(
                         lead=lead,
                         estado_anterior=estado_anterior,
                         estado_nuevo=estado_nuevo,
-                        usuario=request.user  # Usuario que realizó el cambio
+                        usuario=request.user
                     )
-
                 return Response(serializer.data)
             except Exception as e:
-                return Response(
-                    {"error": f"Error al actualizar el lead: {str(e)}"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                return Response({"error": f"Error al actualizar el lead: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
-        """
-        Elimina un lead específico.
-        """
         lead = self.get_object(pk)
         if lead is None:
             return Response({"error": "Lead no encontrado"}, status=status.HTTP_404_NOT_FOUND)
@@ -154,36 +133,22 @@ class LeadDetailView(APIView):
             lead.delete()
             return Response({"message": "Lead eliminado correctamente"}, status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
-            return Response(
-                {"error": f"Error al eliminar el lead: {str(e)}"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"error": f"Error al eliminar el lead: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class LeadSearchByNumberView(APIView):
     """
     Endpoint para buscar leads por número de móvil.
-    Requiere autenticación y permisos de modelo.
     """
-    permission_classes = [IsAuthenticated, DjangoModelPermissions]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """
-        Devuelve el conjunto de datos de leads.
-        """
         return Lead.objects.all()
 
     def get(self, request, numero_movil):
-        """
-        Busca leads cuyo número de móvil contenga la cadena proporcionada.
-        """
-        queryset = self.get_queryset()
-        leads = queryset.filter(numero_movil__icontains=numero_movil)
+        leads = self.get_queryset().filter(numero_movil__icontains=numero_movil)
         if not leads.exists():
-            return Response(
-                {"message": "No se encontraron leads con ese número de móvil."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"message": "No se encontraron leads con ese número de móvil."}, status=status.HTTP_404_NOT_FOUND)
         serializer = LeadSerializer(leads, many=True)
         return Response(serializer.data)
 
@@ -192,15 +157,12 @@ class HistorialEstadoView(APIView):
     """
     Endpoint para listar el historial de cambios de estado de un lead.
     """
-    permission_classes = [IsAuthenticated, DjangoModelPermissions]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self, lead_id):
         return HistorialEstado.objects.filter(lead_id=lead_id)
 
     def get(self, request, lead_id):
-        """
-        Devuelve el historial de cambios de estado para un lead específico.
-        """
         queryset = self.get_queryset(lead_id)
         serializer = HistorialEstadoSerializer(queryset, many=True)
         return Response(serializer.data)
@@ -239,4 +201,28 @@ class SubtipoContactoByTipoContactoView(APIView):
     def get(self, request, tipo_contacto_id):
         subtipos = SubtipoContacto.objects.filter(tipo_contacto_id=tipo_contacto_id)
         data = [{"id": subtipo.id, "descripcion": subtipo.descripcion} for subtipo in subtipos]
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class GenericListView(APIView):
+    """
+    Endpoint genérico para listar elementos de tablas de referencia.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, model_name):
+        models_map = {
+            "tipo-documento": TipoDocumento,
+            "resultado-cobertura": ResultadoCobertura,
+            "transferencia": Transferencia,
+            "tipo-vivienda": TipoVivienda,
+            "tipo-base": TipoBase,
+            "estado": Estado,
+            "sector": Sector,
+            "origen": Origen,
+        }
+        model = models_map.get(model_name)
+        if not model:
+            return Response({"error": "Modelo no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        data = [{"id": obj.id, "nombre": str(obj)} for obj in model.objects.all()]
         return Response(data, status=status.HTTP_200_OK)

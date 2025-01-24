@@ -7,7 +7,8 @@ from .views import (
     HistorialEstadoView,
     ProvinciaByDepartamentoView,
     DistritoByProvinciaView,
-    SubtipoContactoByTipoContactoView  
+    SubtipoContactoByTipoContactoView,
+    GenericListView
 )
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -21,4 +22,5 @@ urlpatterns = [
     path('provincias/<int:departamento_id>/', ProvinciaByDepartamentoView.as_view(), name='provincias_by_departamento'),  # Provincias por departamento
     path('distritos/<int:provincia_id>/', DistritoByProvinciaView.as_view(), name='distritos_by_provincia'),  # Distritos por provincia
     path('subtipos/<int:tipo_contacto_id>/', SubtipoContactoByTipoContactoView.as_view(), name='subtipos_by_tipo_contacto'),  # Subtipos por tipo de contacto
+    path('<str:model_name>/', GenericListView.as_view(), name='generic_list'),  # Listado genérico de tablas auxiliares
 ]
