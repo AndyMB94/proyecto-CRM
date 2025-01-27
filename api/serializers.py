@@ -89,10 +89,12 @@ class LeadSerializer(serializers.ModelSerializer):
     def validate_numero_movil(self, value):
         """
         Valida que el número móvil sea único y tenga al menos 9 caracteres.
+        Permite que el número móvil sea el mismo del objeto que se está actualizando.
         """
+        lead_id = self.instance.id if self.instance else None
         if value and len(value) < 9:
             raise serializers.ValidationError("El número móvil debe tener al menos 9 dígitos.")
-        if Lead.objects.filter(numero_movil=value).exists():
+        if Lead.objects.filter(numero_movil=value).exclude(id=lead_id).exists():
             raise serializers.ValidationError("El número móvil ya está registrado.")
         return value
 

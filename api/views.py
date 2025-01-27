@@ -1,7 +1,8 @@
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import CustomTokenObtainPairSerializer, LeadSerializer, HistorialLeadSerializer
 from rest_framework.authentication import BasicAuthentication, SessionAuthentication
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated, DjangoModelPermissions, DjangoObjectPermissions
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.contrib.auth.models import User
@@ -26,10 +27,8 @@ from .models import (
     Profile,
     HistorialLead,
 )
-from django.contrib.auth.models import User
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import ValidationError
 from django.utils.timezone import now
+from rest_framework.exceptions import ValidationError
 
 
 
@@ -104,7 +103,7 @@ class LeadListCreateView(APIView):
     Endpoint para listar y crear leads.
     Requiere autenticación.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, DjangoModelPermissions]
 
     def get_queryset(self):
         """
@@ -169,7 +168,7 @@ class ConvertLeadToContractView(APIView):
     """
     Endpoint para convertir un lead en un contrato.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, DjangoModelPermissions]
 
     def post(self, request, lead_id):
         """
@@ -223,7 +222,7 @@ class LeadDetailView(APIView):
     """
     Endpoint para obtener, actualizar o eliminar un lead específico.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, DjangoModelPermissions]
 
     def get_queryset(self):
         return Lead.objects.all()
@@ -277,7 +276,7 @@ class LeadSearchByNumberView(APIView):
     """
     Endpoint para buscar leads por número de móvil.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, DjangoModelPermissions]
 
     def get_queryset(self):
         return Lead.objects.all()
@@ -294,7 +293,7 @@ class OwnerListView(APIView):
     """
     Endpoint para listar todos los dueños, incluyendo campos de perfil si están presentes.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, DjangoModelPermissions]
 
     def get(self, request):
         owners = User.objects.all()
@@ -314,7 +313,7 @@ class ContratoListView(APIView):
     """
     Endpoint para listar todos los contratos.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, DjangoModelPermissions]
 
     def get(self, request):
         """
@@ -342,7 +341,7 @@ class ProvinciaByDepartamentoView(APIView):
     """
     Devuelve las provincias asociadas a un departamento.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, DjangoModelPermissions]
 
     def get(self, request, departamento_id):
         provincias = Provincia.objects.filter(departamento_id=departamento_id)
@@ -354,7 +353,7 @@ class DistritoByProvinciaView(APIView):
     """
     Devuelve los distritos asociados a una provincia.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, DjangoModelPermissions]
 
     def get(self, request, provincia_id):
         distritos = Distrito.objects.filter(provincia_id=provincia_id)
@@ -366,19 +365,51 @@ class SubtipoContactoByTipoContactoView(APIView):
     """
     Devuelve los subtipos de contacto asociados a un tipo de contacto.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, DjangoModelPermissions]
 
     def get(self, request, tipo_contacto_id):
         subtipos = SubtipoContacto.objects.filter(tipo_contacto_id=tipo_contacto_id)
         data = [{"id": subtipo.id, "descripcion": subtipo.descripcion} for subtipo in subtipos]
         return Response(data, status=status.HTTP_200_OK)
+    
+class HistorialPagination(PageNumberPagination):
+    page_size = 10
+
+class LeadHistorialView(APIView):
+    """
+    Endpoint para obtener el historial de un lead específico.
+    """
+    permission_classes = [IsAuthenticated, DjangoModelPermissions]
+    pagination_class = HistorialPagination
+
+    def get_queryset(self):
+        """
+        Devuelve el historial asociado al lead especificado en los argumentos de la vista.
+        """
+        lead_id = self.kwargs.get('lead_id')  # Obtiene el lead_id de los argumentos de la URL
+        return HistorialLead.objects.filter(lead_id=lead_id).order_by('-fecha')
+
+    def get(self, request, lead_id):
+        """
+        Retorna el historial paginado del lead.
+        """
+        try:
+            queryset = self.get_queryset()
+            paginator = self.pagination_class()
+            paginated_historial = paginator.paginate_queryset(queryset, request)
+            serializer = HistorialLeadSerializer(paginated_historial, many=True)
+            return paginator.get_paginated_response(serializer.data)
+        except Exception as e:
+            return Response({"error": f"Error al obtener el historial del lead: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 
 class GenericListView(APIView):
     """
     Endpoint genérico para listar elementos de tablas de referencia.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, DjangoModelPermissions]
 
     def get(self, request, model_name):
         models_map = {

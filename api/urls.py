@@ -12,6 +12,7 @@ from .views import (
     ContratoListView,
     ConvertLeadToContractView,
     CreateUserView,
+    LeadHistorialView,
 )
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -44,4 +45,7 @@ urlpatterns = [
 
     # Listado genérico de tablas auxiliares
     path('<str:model_name>/', GenericListView.as_view(), name='generic_list'),  # Listar elementos de modelos auxiliares
+
+    path('leads/<int:lead_id>/historial/', LeadHistorialView.as_view(), name='lead_historial'),
+
 ]
