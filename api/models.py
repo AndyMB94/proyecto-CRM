@@ -136,7 +136,7 @@ class Lead(models.Model):
     origen = models.ForeignKey(Origen, on_delete=models.CASCADE)  # Obligatorio
     subtipo_contacto = models.ForeignKey(SubtipoContacto, on_delete=models.CASCADE)
     resultado_cobertura = models.ForeignKey(ResultadoCobertura, on_delete=models.PROTECT)  # Obligatorio
-    transferencia = models.ForeignKey(Transferencia, on_delete=models.PROTECT)  # Obligatorio
+    transferencia = models.ForeignKey(Transferencia, on_delete=models.PROTECT, null=True, blank=True)  # Opcional
     tipo_vivienda = models.ForeignKey(TipoVivienda, on_delete=models.PROTECT)  # Obligatorio
     tipo_base = models.ForeignKey(TipoBase, on_delete=models.SET_NULL, null=True, blank=True)
     plan_contrato = models.ForeignKey(TipoPlanContrato, on_delete=models.SET_NULL, null=True, blank=True)
@@ -150,6 +150,12 @@ class Lead(models.Model):
     def clean(self):
         if self.numero_movil and len(self.numero_movil) < 9:
             raise ValidationError("El número móvil debe tener al menos 9 dígitos.")
+
+        # Validación para Transferencia si SubtipoContacto es 'Transferencia'
+        if self.subtipo_contacto.descripcion.lower() == "transferencia" and not self.transferencia:
+            raise ValidationError({
+                "transferencia": "El campo 'transferencia' es obligatorio cuando el subtipo de contacto es 'Transferencia'."
+            })
 
     def __str__(self):
         return f"{self.nombre} {self.apellido}"

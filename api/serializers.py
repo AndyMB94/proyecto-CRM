@@ -1,5 +1,5 @@
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.exceptions import AuthenticationFailed, ValidationError
 from django.contrib.auth import authenticate
 from rest_framework import serializers
 from .models import Lead, HistorialLead, Documento
@@ -105,6 +105,25 @@ class LeadSerializer(serializers.ModelSerializer):
         if value and not serializers.EmailField().run_validation(value):
             raise serializers.ValidationError("El correo electrónico no es válido.")
         return value
+
+    def validate(self, data):
+        """
+        Si el subtipo_contacto es "Transferencia" y pertenece a "No Contacto",
+        el campo transferencia debe ser obligatorio.
+        """
+        subtipo_contacto = data.get("subtipo_contacto")
+        transferencia = data.get("transferencia")
+
+        if subtipo_contacto:
+            tipo_contacto = subtipo_contacto.tipo_contacto
+            # Verifica si pertenece a "No Contacto" y tiene el subtipo "Transferencia"
+            if tipo_contacto.nombre_tipo == "No Contacto" and subtipo_contacto.descripcion == "Transferencia":
+                if not transferencia:
+                    raise ValidationError({
+                        "transferencia": "El campo 'transferencia' es obligatorio cuando el subtipo de contacto es 'Transferencia'."
+                    })
+
+        return data
 
 
 class HistorialLeadSerializer(serializers.ModelSerializer):
