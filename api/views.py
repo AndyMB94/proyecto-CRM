@@ -1,7 +1,7 @@
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import CustomTokenObtainPairSerializer, LeadSerializer, HistorialLeadSerializer
 from rest_framework.authentication import BasicAuthentication, SessionAuthentication
-from rest_framework.permissions import AllowAny, IsAuthenticated, DjangoModelPermissions, DjangoObjectPermissions
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -103,7 +103,7 @@ class LeadListCreateView(APIView):
     Endpoint para listar y crear leads.
     Requiere autenticación.
     """
-    permission_classes = [IsAuthenticated, DjangoModelPermissions]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         """
@@ -168,7 +168,7 @@ class ConvertLeadToContractView(APIView):
     """
     Endpoint para convertir un lead en un contrato.
     """
-    permission_classes = [IsAuthenticated, DjangoModelPermissions]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, lead_id):
         """
@@ -222,7 +222,7 @@ class LeadDetailView(APIView):
     """
     Endpoint para obtener, actualizar o eliminar un lead específico.
     """
-    permission_classes = [IsAuthenticated, DjangoModelPermissions]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         return Lead.objects.all()
@@ -276,7 +276,7 @@ class LeadSearchByNumberView(APIView):
     """
     Endpoint para buscar leads por número de móvil.
     """
-    permission_classes = [IsAuthenticated, DjangoModelPermissions]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         return Lead.objects.all()
@@ -293,9 +293,12 @@ class OwnerListView(APIView):
     """
     Endpoint para listar todos los dueños, incluyendo campos de perfil si están presentes.
     """
-    permission_classes = [IsAuthenticated, DjangoModelPermissions]
+    permission_classes = [IsAuthenticated]  # Verifica que el usuario esté autenticado
 
     def get(self, request):
+        """
+        Devuelve una lista de todos los usuarios (dueños) junto con su información de perfil.
+        """
         owners = User.objects.all()
         data = [
             {
@@ -313,7 +316,8 @@ class ContratoListView(APIView):
     """
     Endpoint para listar todos los contratos.
     """
-    permission_classes = [IsAuthenticated, DjangoModelPermissions]
+    queryset = Contrato.objects.all()
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         """
@@ -341,7 +345,7 @@ class ProvinciaByDepartamentoView(APIView):
     """
     Devuelve las provincias asociadas a un departamento.
     """
-    permission_classes = [IsAuthenticated, DjangoModelPermissions]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, departamento_id):
         provincias = Provincia.objects.filter(departamento_id=departamento_id)
@@ -353,7 +357,7 @@ class DistritoByProvinciaView(APIView):
     """
     Devuelve los distritos asociados a una provincia.
     """
-    permission_classes = [IsAuthenticated, DjangoModelPermissions]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, provincia_id):
         distritos = Distrito.objects.filter(provincia_id=provincia_id)
@@ -365,7 +369,7 @@ class SubtipoContactoByTipoContactoView(APIView):
     """
     Devuelve los subtipos de contacto asociados a un tipo de contacto.
     """
-    permission_classes = [IsAuthenticated, DjangoModelPermissions]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, tipo_contacto_id):
         subtipos = SubtipoContacto.objects.filter(tipo_contacto_id=tipo_contacto_id)
@@ -379,7 +383,7 @@ class LeadHistorialView(APIView):
     """
     Endpoint para obtener el historial de un lead específico.
     """
-    permission_classes = [IsAuthenticated, DjangoModelPermissions]
+    permission_classes = [IsAuthenticated]
     pagination_class = HistorialPagination
 
     def get_queryset(self):
@@ -409,7 +413,13 @@ class GenericListView(APIView):
     """
     Endpoint genérico para listar elementos de tablas de referencia.
     """
-    permission_classes = [IsAuthenticated, DjangoModelPermissions]
+    permission_classes = [IsAuthenticated]  # Cambia si necesitas aplicar permisos más específicos.
+
+    def get_queryset(self, model):
+        """
+        Devuelve un queryset dinámico basado en el modelo proporcionado.
+        """
+        return model.objects.all()
 
     def get(self, request, model_name):
         models_map = {
@@ -427,6 +437,9 @@ class GenericListView(APIView):
         model = models_map.get(model_name)
         if not model:
             return Response({"error": "Modelo no encontrado."}, status=status.HTTP_404_NOT_FOUND)
-        data = [{"id": obj.id, "nombre": str(obj)} for obj in model.objects.all()]
+
+        queryset = self.get_queryset(model)
+        data = [{"id": obj.id, "nombre": str(obj)} for obj in queryset]
         return Response(data, status=status.HTTP_200_OK)
+
 
