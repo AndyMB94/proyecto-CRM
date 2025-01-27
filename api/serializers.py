@@ -2,7 +2,8 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.exceptions import AuthenticationFailed
 from django.contrib.auth import authenticate
 from rest_framework import serializers
-from .models import Lead, HistorialEstado
+from .models import Lead, HistorialLead, Documento
+from django.contrib.auth.models import User
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -13,9 +14,15 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         # Agrega campos adicionales al token
         token['email'] = user.email
         token['is_staff'] = user.is_staff
-        token['nombres'] = user.nombres  # Incluye el nombre
-        token['apellidos'] = user.apellidos  # Incluye el apellido
-        token['telefono'] = user.telefono  # Incluye el teléfono
+
+        # Si hay un perfil asociado, añade campos adicionales
+        if hasattr(user, 'profile'):
+            token['telefono'] = user.profile.telefono
+            token['direccion'] = user.profile.direccion
+        else:
+            token['telefono'] = None
+            token['direccion'] = None
+
         return token
 
     def validate(self, attrs):
@@ -36,14 +43,20 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         # Retorna el token generado
         data = super().validate(attrs)
-        data['user'] = {
+        user_data = {
             "id": user.id,
             "username": user.username,
             "email": user.email,
-            "nombres": user.nombres,
-            "apellidos": user.apellidos,
-            "telefono": user.telefono,
         }
+
+        # Incluye campos adicionales si hay un perfil asociado
+        if hasattr(user, 'profile'):
+            user_data.update({
+                "telefono": user.profile.telefono,
+                "direccion": user.profile.direccion,
+            })
+
+        data['user'] = user_data
         return data
 
 
@@ -52,15 +65,12 @@ class LeadSerializer(serializers.ModelSerializer):
         model = Lead
         fields = [
             'id',
-            'nombre_lead',
             'nombre',
             'apellido',
             'numero_movil',
-            'numero_trabajo',
             'nombre_compania',
             'correo',
             'cargo',
-            'estado',
             'origen',
             'subtipo_contacto',
             'resultado_cobertura',
@@ -71,17 +81,34 @@ class LeadSerializer(serializers.ModelSerializer):
             'distrito',
             'sector',
             'direccion',
-            'etiquetas',
             'coordenadas',
             'dueno',
             'fecha_creacion',
         ]
 
-class HistorialEstadoSerializer(serializers.ModelSerializer):
-    estado_anterior = serializers.StringRelatedField()
-    estado_nuevo = serializers.StringRelatedField()
+    def validate_numero_movil(self, value):
+        """
+        Valida que el número móvil sea único y tenga al menos 9 caracteres.
+        """
+        if value and len(value) < 9:
+            raise serializers.ValidationError("El número móvil debe tener al menos 9 dígitos.")
+        if Lead.objects.filter(numero_movil=value).exists():
+            raise serializers.ValidationError("El número móvil ya está registrado.")
+        return value
+
+    def validate_correo(self, value):
+        """
+        Valida que el correo tenga un formato correcto.
+        """
+        if value and not serializers.EmailField().run_validation(value):
+            raise serializers.ValidationError("El correo electrónico no es válido.")
+        return value
+
+
+class HistorialLeadSerializer(serializers.ModelSerializer):
     usuario = serializers.StringRelatedField()
+    lead = serializers.StringRelatedField()
 
     class Meta:
-        model = HistorialEstado
-        fields = ['id', 'lead', 'estado_anterior', 'estado_nuevo', 'usuario', 'fecha_cambio']
+        model = HistorialLead
+        fields = ['id', 'lead', 'usuario', 'descripcion', 'fecha']

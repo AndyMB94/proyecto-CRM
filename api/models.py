@@ -1,57 +1,38 @@
-from django.contrib.auth.models import AbstractUser, Group, Permission
+from django.contrib.auth.models import User
 from django.db import models
-from django.utils.translation import gettext_lazy as _
+from django.core.exceptions import ValidationError
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
-# Custom User Model
-class CustomUser(AbstractUser):
-    email = models.EmailField(_('email address'), unique=True)
-    nombres = models.CharField(max_length=100, blank=True, null=True)  # Nuevo campo
-    apellidos = models.CharField(max_length=100, blank=True, null=True)  # Nuevo campo
+
+# Modelo Profile para datos adicionales del usuario
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     telefono = models.CharField(max_length=15, blank=True, null=True)
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
-
-    # Define username como identificador principal
-    USERNAME_FIELD = 'username'
-    REQUIRED_FIELDS = ['email']  # El correo sigue siendo obligatorio
-
-    # Agrega related_name para evitar conflictos
-    groups = models.ManyToManyField(
-        Group,
-        related_name="customuser_groups",
-        blank=True,
-        help_text=_(
-            'The groups this user belongs to. A user will get all permissions '
-            'granted to each of their groups.'
-        ),
-        related_query_name="customuser",
-    )
-    user_permissions = models.ManyToManyField(
-        Permission,
-        related_name="customuser_permissions",
-        blank=True,
-        help_text=_('Specific permissions for this user.'),
-        related_query_name="customuser",
-    )
+    direccion = models.CharField(max_length=255, blank=True, null=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)  # Fecha de creación del perfil
 
     def __str__(self):
-        return self.username
+        return f"Perfil de {self.user.username}"
 
-# Estado Model
-class Estado(models.Model):
-    nombre_estado = models.CharField(max_length=50, unique=True)
-    descripcion = models.TextField(blank=True, null=True)
 
-    def __str__(self):
-        return self.nombre_estado
+@receiver(post_save, sender=User)
+def create_or_update_user_profile(sender, instance, created, **kwargs):
+    if created:
+        Profile.objects.create(user=instance)
+    else:
+        instance.profile.save()
 
-# Departamento Model
+
+# Modelo Departamento
 class Departamento(models.Model):
     nombre_departamento = models.CharField(max_length=100, unique=True)
 
     def __str__(self):
         return self.nombre_departamento
 
-# Provincia Model
+
+# Modelo Provincia
 class Provincia(models.Model):
     nombre_provincia = models.CharField(max_length=100)
     departamento = models.ForeignKey(Departamento, on_delete=models.CASCADE)
@@ -59,7 +40,8 @@ class Provincia(models.Model):
     def __str__(self):
         return self.nombre_provincia
 
-# Distrito Model
+
+# Modelo Distrito
 class Distrito(models.Model):
     nombre_distrito = models.CharField(max_length=100)
     provincia = models.ForeignKey(Provincia, on_delete=models.CASCADE)
@@ -67,7 +49,8 @@ class Distrito(models.Model):
     def __str__(self):
         return self.nombre_distrito
 
-# Origen Model
+
+# Modelo Origen
 class Origen(models.Model):
     nombre_origen = models.CharField(max_length=50, unique=True)
     descripcion = models.TextField(blank=True, null=True)
@@ -75,14 +58,16 @@ class Origen(models.Model):
     def __str__(self):
         return self.nombre_origen
 
-# TipoContacto Model
+
+# Modelo TipoContacto
 class TipoContacto(models.Model):
     nombre_tipo = models.CharField(max_length=50, unique=True)
 
     def __str__(self):
         return self.nombre_tipo
 
-# SubtipoContacto Model
+
+# Modelo SubtipoContacto
 class SubtipoContacto(models.Model):
     descripcion = models.CharField(max_length=100, unique=True)
     tipo_contacto = models.ForeignKey(TipoContacto, on_delete=models.CASCADE)
@@ -90,35 +75,40 @@ class SubtipoContacto(models.Model):
     def __str__(self):
         return self.descripcion
 
-# ResultadoCobertura Model
+
+# Modelo ResultadoCobertura
 class ResultadoCobertura(models.Model):
     descripcion = models.CharField(max_length=100, unique=True)
 
     def __str__(self):
         return self.descripcion
 
-# Transferencia Model
+
+# Modelo Transferencia
 class Transferencia(models.Model):
     descripcion = models.CharField(max_length=100, unique=True)
 
     def __str__(self):
         return self.descripcion
 
-# TipoVivienda Model
+
+# Modelo TipoVivienda
 class TipoVivienda(models.Model):
     descripcion = models.CharField(max_length=100, unique=True)
 
     def __str__(self):
         return self.descripcion
 
-# TipoBase Model
+
+# Modelo TipoBase
 class TipoBase(models.Model):
     descripcion = models.CharField(max_length=100, unique=True)
 
     def __str__(self):
         return self.descripcion
 
-# TipoPlanContrato Model
+
+# Modelo TipoPlanContrato
 class TipoPlanContrato(models.Model):
     descripcion = models.CharField(max_length=100, unique=True)
     detalles = models.TextField(blank=True, null=True)
@@ -126,24 +116,23 @@ class TipoPlanContrato(models.Model):
     def __str__(self):
         return self.descripcion
 
-# Sector Model
+
+# Modelo Sector
 class Sector(models.Model):
     nombre_sector = models.CharField(max_length=100, unique=True)
 
     def __str__(self):
         return self.nombre_sector
 
-# Lead Model
+
+# Modelo Lead
 class Lead(models.Model):
-    nombre_lead = models.CharField(max_length=100)  # Este es requerido para identificar un lead
     nombre = models.CharField(max_length=100)  # Obligatorio
     apellido = models.CharField(max_length=100)  # Obligatorio
-    numero_movil = models.CharField(max_length=15, blank=True, null=True)
-    numero_trabajo = models.CharField(max_length=15, blank=True, null=True)
+    numero_movil = models.CharField(max_length=15, unique=True, blank=True, null=True)
     nombre_compania = models.CharField(max_length=100)  # Obligatorio
     correo = models.EmailField(max_length=100, blank=True, null=True)
     cargo = models.CharField(max_length=100, blank=True, null=True)
-    estado = models.ForeignKey(Estado, on_delete=models.CASCADE)
     origen = models.ForeignKey(Origen, on_delete=models.CASCADE)  # Obligatorio
     subtipo_contacto = models.ForeignKey(SubtipoContacto, on_delete=models.CASCADE)
     resultado_cobertura = models.ForeignKey(ResultadoCobertura, on_delete=models.PROTECT)  # Obligatorio
@@ -154,25 +143,30 @@ class Lead(models.Model):
     distrito = models.ForeignKey(Distrito, on_delete=models.PROTECT)  # Obligatorio (incluye departamento y provincia)
     sector = models.ForeignKey(Sector, on_delete=models.SET_NULL, null=True, blank=True)
     direccion = models.CharField(max_length=255)  # Obligatorio
-    etiquetas = models.TextField(blank=True, null=True)
     coordenadas = models.CharField(max_length=100)  # Obligatorio
-    dueno = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    dueno = models.ForeignKey(User, on_delete=models.CASCADE)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return self.nombre_lead
+    def clean(self):
+        if self.numero_movil and len(self.numero_movil) < 9:
+            raise ValidationError("El número móvil debe tener al menos 9 dígitos.")
 
-# Documento Model
+    def __str__(self):
+        return f"{self.nombre} {self.apellido}"
+
+
+# Modelo Documento
 class Documento(models.Model):
     tipo_documento = models.ForeignKey('TipoDocumento', on_delete=models.CASCADE)
     numero_documento = models.CharField(max_length=20, unique=True)
     lead = models.ForeignKey(Lead, on_delete=models.SET_NULL, null=True, blank=True)
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.numero_documento
 
-# TipoDocumento Model
+
+# Modelo TipoDocumento
 class TipoDocumento(models.Model):
     nombre_tipo = models.CharField(max_length=50, unique=True)
     descripcion = models.TextField(blank=True, null=True)
@@ -180,30 +174,24 @@ class TipoDocumento(models.Model):
     def __str__(self):
         return self.nombre_tipo
 
-# Contrato Model
+
+# Modelo Contrato
 class Contrato(models.Model):
     nombre_contrato = models.CharField(max_length=100)
     lead = models.ForeignKey(Lead, on_delete=models.CASCADE)
-    fecha_inicio = models.DateField(auto_now_add=True)  # Se establece automáticamente al crear
+    fecha_inicio = models.DateField(auto_now_add=True)
     observaciones = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return self.nombre_contrato
 
 
-# HistorialEstado Model
-class HistorialEstado(models.Model):
-    lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name="historial_estados")  # Relación con Lead
-    estado_anterior = models.ForeignKey(
-        Estado, on_delete=models.SET_NULL, null=True, blank=True, related_name="estado_anterior"
-    )  # Estado antes del cambio
-    estado_nuevo = models.ForeignKey(
-        Estado, on_delete=models.CASCADE, related_name="estado_nuevo"
-    )  # Estado después del cambio
-    usuario = models.ForeignKey(
-        CustomUser, on_delete=models.SET_NULL, null=True, blank=True
-    )  # Usuario que realizó el cambio
-    fecha_cambio = models.DateTimeField(auto_now_add=True)  # Fecha y hora del cambio
+# Modelo HistorialLead
+class HistorialLead(models.Model):
+    lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name="historial")
+    usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    fecha = models.DateTimeField(auto_now_add=True)
+    descripcion = models.TextField()  # Descripción del cambio o interacción.
 
     def __str__(self):
-        return f"Lead: {self.lead.nombre_lead} | Estado: {self.estado_anterior} -> {self.estado_nuevo}"
+        return f"Lead: {self.lead} | {self.descripcion} | {self.fecha}"
