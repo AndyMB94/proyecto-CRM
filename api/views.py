@@ -329,7 +329,6 @@ class ContratoListView(APIView):
                 "observaciones": contrato.observaciones,
                 "lead": {
                     "id": contrato.lead.id,
-                    "nombre_lead": contrato.lead.nombre_lead,
                     "nombre": contrato.lead.nombre,
                     "apellido": contrato.lead.apellido,
                 },
