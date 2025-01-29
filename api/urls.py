@@ -13,6 +13,7 @@ from .views import (
     ConvertLeadToContractView,
     CreateUserView,
     LeadHistorialView,
+    LeadsYContratosPorOrigenAPIView
 )
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -43,9 +44,10 @@ urlpatterns = [
     # Gestión de contactos
     path('subtipos/<int:tipo_contacto_id>/', SubtipoContactoByTipoContactoView.as_view(), name='subtipos_by_tipo_contacto'),  # Subtipos por tipo de contacto
 
-    # Listado genérico de tablas auxiliares
-    path('<str:model_name>/', GenericListView.as_view(), name='generic_list'),  # Listar elementos de modelos auxiliares
-
     path('leads/<int:lead_id>/historial/', LeadHistorialView.as_view(), name='lead_historial'),
 
+    path('leads-contratos-por-origen/', LeadsYContratosPorOrigenAPIView.as_view(), name='leads_contratos_por_origen'),
+
+    # Listado genérico de tablas auxiliares
+    path('<str:model_name>/', GenericListView.as_view(), name='generic_list'),  # Listar elementos de modelos auxiliares
 ]

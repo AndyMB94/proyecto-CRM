@@ -29,6 +29,8 @@ from .models import (
 )
 from django.utils.timezone import now
 from rest_framework.exceptions import ValidationError
+from django.db.models import Count
+from datetime import datetime
 
 
 
@@ -443,3 +445,86 @@ class GenericListView(APIView):
         return Response(data, status=status.HTTP_200_OK)
 
 
+class LeadsYContratosPorOrigenAPIView(APIView):
+    """
+    Endpoint para obtener la cantidad de leads y contratos por origen,
+    filtrados por mes, año o rango de fechas.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        # Obtener los parámetros de filtro
+        fecha_inicio = request.query_params.get('fecha_inicio')  # YYYY-MM-DD
+        fecha_fin = request.query_params.get('fecha_fin')  # YYYY-MM-DD
+        mes = request.query_params.get('mes')  # MM
+        año = request.query_params.get('año')  # YYYY
+
+        # Preparar el filtro de fechas
+        filtros_leads = {}
+        filtros_contratos = {}
+
+        # Filtrar por rango de fechas si se proporcionan
+        if fecha_inicio:
+            filtros_leads['fecha_creacion__gte'] = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+            filtros_contratos['lead__fecha_creacion__gte'] = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+
+        if fecha_fin:
+            filtros_leads['fecha_creacion__lte'] = datetime.strptime(fecha_fin, '%Y-%m-%d')
+            filtros_contratos['lead__fecha_creacion__lte'] = datetime.strptime(fecha_fin, '%Y-%m-%d')
+
+        # Filtro por mes y año
+        if mes and año:
+            filtros_leads['fecha_creacion__month'] = int(mes)
+            filtros_leads['fecha_creacion__year'] = int(año)
+            filtros_contratos['lead__fecha_creacion__month'] = int(mes)
+            filtros_contratos['lead__fecha_creacion__year'] = int(año)
+        elif año:  # Filtrar solo por año
+            filtros_leads['fecha_creacion__year'] = int(año)
+            filtros_contratos['lead__fecha_creacion__year'] = int(año)
+
+        # Calcular la cantidad total de leads en el período filtrado
+        total_leads_global = Lead.objects.filter(**filtros_leads).count()
+
+        # Calcular la cantidad total de contratos en el período filtrado
+        total_contratos_global = Contrato.objects.filter(**filtros_contratos).count()
+
+        # Filtrar leads por origen
+        leads_por_origen = (
+            Lead.objects.filter(**filtros_leads)
+            .values('origen__nombre_origen')
+            .annotate(total_leads=Count('id'))
+            .order_by('origen__nombre_origen')
+        )
+
+        # Filtrar contratos por origen
+        contratos_por_origen = (
+            Contrato.objects.filter(**filtros_contratos)
+            .values('lead__origen__nombre_origen')
+            .annotate(total_contratos=Count('id'))
+            .order_by('lead__origen__nombre_origen')
+        )
+
+        # Convertir contratos a diccionario para acceso rápido
+        contratos_dict = {
+            item['lead__origen__nombre_origen']: item['total_contratos']
+            for item in contratos_por_origen
+        }
+
+        # Consolidar los datos
+        data = [
+            {
+                'origen': item['origen__nombre_origen'],
+                'total_leads': item['total_leads'],
+                'total_contratos': contratos_dict.get(item['origen__nombre_origen'], 0),
+            }
+            for item in leads_por_origen
+        ]
+
+        # Agregar datos globales al response
+        response = {
+            "total_leads_global": total_leads_global,
+            "total_contratos_global": total_contratos_global,
+            "detalle_por_origen": data
+        }
+
+        return Response(response)
