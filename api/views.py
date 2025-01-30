@@ -34,14 +34,14 @@ from datetime import datetime
 
 
 
-class CustomTokenObtainPairView(TokenObtainPairView):
+class CustomTokenObtainPairView(TokenObtainPairView):###############
     """
     Endpoint para obtener un token de acceso y refresco.
     """
     serializer_class = CustomTokenObtainPairSerializer
 
 
-class CreateUserView(APIView):
+class CreateUserView(APIView):###############
     """
     Endpoint para crear un usuario y asociarle un documento, teléfono, dirección, 
     nombre y apellido.
@@ -100,7 +100,7 @@ class CreateUserView(APIView):
 
 
 
-class LeadListCreateView(APIView):
+class LeadListCreateView(APIView):###############
     """
     Endpoint para listar y crear leads.
     Requiere autenticación.
@@ -166,7 +166,7 @@ class LeadListCreateView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ConvertLeadToContractView(APIView):
+class ConvertLeadToContractView(APIView):###############
     """
     Endpoint para convertir un lead en un contrato.
     """
@@ -220,7 +220,7 @@ class ConvertLeadToContractView(APIView):
 
 
 
-class LeadDetailView(APIView):
+class LeadDetailView(APIView):###############
     """
     Endpoint para obtener, actualizar o eliminar un lead específico.
     """
@@ -284,14 +284,18 @@ class LeadSearchByNumberView(APIView):
         return Lead.objects.all()
 
     def get(self, request, numero_movil):
+        if len(numero_movil) < 5:
+            return Response({"error": "Ingrese al menos 5 dígitos para la búsqueda."}, status=status.HTTP_400_BAD_REQUEST)
+
         leads = self.get_queryset().filter(numero_movil__icontains=numero_movil)
         if not leads.exists():
             return Response({"message": "No se encontraron leads con ese número de móvil."}, status=status.HTTP_404_NOT_FOUND)
+        
         serializer = LeadSerializer(leads, many=True)
         return Response(serializer.data)
 
 
-class OwnerListView(APIView):
+class OwnerListView(APIView):###############
     """
     Endpoint para listar todos los dueños, incluyendo campos de perfil si están presentes.
     """
@@ -314,7 +318,7 @@ class OwnerListView(APIView):
         ]
         return Response(data, status=status.HTTP_200_OK)
 
-class ContratoListView(APIView):
+class ContratoListView(APIView):###############
     """
     Endpoint para listar todos los contratos.
     """
@@ -445,7 +449,7 @@ class GenericListView(APIView):
         return Response(data, status=status.HTTP_200_OK)
 
 
-class LeadsYContratosPorOrigenAPIView(APIView):
+class LeadsYContratosPorOrigenAPIView(APIView):###############
     """
     Endpoint para obtener la cantidad de leads y contratos por origen,
     filtrados por mes, año o rango de fechas.
