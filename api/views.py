@@ -183,6 +183,11 @@ class ConvertLeadToContractView(APIView):###############
             lead = Lead.objects.get(id=lead_id)
         except Lead.DoesNotExist:
             return Response({"error": "Lead no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Verificar si el lead ya ha sido convertido
+        if lead.estado == 1:
+            return Response({"error": "Este lead ya ha sido convertido en contrato anteriormente."},
+                            status=status.HTTP_400_BAD_REQUEST)
 
         nombre_contrato = f"{lead.nombre} {lead.apellido}"
         fecha_inicio = now().date()
@@ -200,7 +205,7 @@ class ConvertLeadToContractView(APIView):###############
             lead.estado = 1
             lead.save()
 
-            # Registrar en el historial del lead
+            # Registrar en el historial del lead solo si la conversion es exitosa
             HistorialLead.objects.create(
                 lead=lead,
                 usuario=request.user,
@@ -256,7 +261,7 @@ class LeadDetailView(APIView):###############
             return Response({"error": "Lead no encontrado"}, status=status.HTTP_404_NOT_FOUND)
         
         data = request.data.copy()
-        
+
         # Evita que el estado se modifique manualmente
         if "estado" in data:
             data.pop("estado") 
