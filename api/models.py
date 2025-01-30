@@ -146,6 +146,7 @@ class Lead(models.Model):
     coordenadas = models.CharField(max_length=100)  # Obligatorio
     dueno = models.ForeignKey(User, on_delete=models.CASCADE)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
+    estado = models.BooleanField(default=False)  # False (0) = No convertido, True (1) = Convertido
 
     def clean(self):
         if self.numero_movil and len(self.numero_movil) < 9:
@@ -158,7 +159,7 @@ class Lead(models.Model):
             })
 
     def __str__(self):
-        return f"{self.nombre} {self.apellido}"
+        return f"{self.nombre} {self.apellido} - Estado: {'Convertido' if self.estado else 'No convertido'}"
 
 
 # Modelo Documento

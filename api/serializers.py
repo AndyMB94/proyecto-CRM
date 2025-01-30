@@ -84,6 +84,7 @@ class LeadSerializer(serializers.ModelSerializer):
             'coordenadas',
             'dueno',
             'fecha_creacion',
+            'estado',
         ]
 
     def validate_numero_movil(self, value):

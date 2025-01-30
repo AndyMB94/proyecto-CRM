@@ -156,7 +156,7 @@ admin.site.register(Sector, SectorAdmin)
 
 # Configuración para Lead
 class LeadAdmin(admin.ModelAdmin):
-    list_display = ('id', 'nombre', 'apellido', 'numero_movil', 'origen', 'dueno')
+    list_display = ('id', 'nombre', 'apellido', 'numero_movil', 'origen', 'dueno', 'estado')
     list_filter = ('origen', 'dueno')
     search_fields = ('nombre', 'apellido', 'numero_movil', 'correo', 'direccion')
     ordering = ('nombre',)

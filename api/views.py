@@ -131,6 +131,9 @@ class LeadListCreateView(APIView):###############
         if "dueno" not in data or not data["dueno"]:
             data["dueno"] = request.user.id
 
+        # Asegurar que el estado del lead sea 0 por defecto
+        data["estado"] = 0  
+
         serializer = LeadSerializer(data=data)
         if serializer.is_valid():
             try:
@@ -174,7 +177,7 @@ class ConvertLeadToContractView(APIView):###############
 
     def post(self, request, lead_id):
         """
-        Convierte un lead en un contrato.
+        Convierte un lead en un contrato y actualiza su estado a 1.
         """
         try:
             lead = Lead.objects.get(id=lead_id)
@@ -192,6 +195,10 @@ class ConvertLeadToContractView(APIView):###############
                 fecha_inicio=fecha_inicio,
                 observaciones=observaciones
             )
+
+            # Actualizar estado del lead a 1
+            lead.estado = 1
+            lead.save()
 
             # Registrar en el historial del lead
             HistorialLead.objects.create(
@@ -211,7 +218,8 @@ class ConvertLeadToContractView(APIView):###############
                 "lead": {
                     "id": lead.id,
                     "nombre": lead.nombre,
-                    "apellido": lead.apellido
+                    "apellido": lead.apellido,
+                    "estado": lead.estado  # Se devuelve el estado actualizado
                 }
             }, status=status.HTTP_201_CREATED)
 
@@ -246,6 +254,12 @@ class LeadDetailView(APIView):###############
         lead = self.get_object(pk)
         if lead is None:
             return Response({"error": "Lead no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+        
+        data = request.data.copy()
+        
+        # Evita que el estado se modifique manualmente
+        if "estado" in data:
+            data.pop("estado") 
         serializer = LeadSerializer(lead, data=request.data)
         if serializer.is_valid():
             try:
