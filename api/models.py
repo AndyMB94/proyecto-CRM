@@ -127,33 +127,32 @@ class Sector(models.Model):
 
 # Modelo Lead
 class Lead(models.Model):
-    nombre = models.CharField(max_length=100)  # Obligatorio
-    apellido = models.CharField(max_length=100)  # Obligatorio
-    numero_movil = models.CharField(max_length=15, unique=True, blank=True, null=True)
-    nombre_compania = models.CharField(max_length=100)  # Obligatorio
+    nombre = models.CharField(max_length=100, blank=True, null=True)
+    apellido = models.CharField(max_length=100, blank=True, null=True)
+    numero_movil = models.CharField(max_length=15, unique=True)
+    nombre_compania = models.CharField(max_length=100, blank=True, null=True)
     correo = models.EmailField(max_length=100, blank=True, null=True)
     cargo = models.CharField(max_length=100, blank=True, null=True)
-    origen = models.ForeignKey(Origen, on_delete=models.CASCADE)  # Obligatorio
-    subtipo_contacto = models.ForeignKey(SubtipoContacto, on_delete=models.CASCADE)
-    resultado_cobertura = models.ForeignKey(ResultadoCobertura, on_delete=models.PROTECT)  # Obligatorio
-    transferencia = models.ForeignKey(Transferencia, on_delete=models.PROTECT, null=True, blank=True)  # Opcional
-    tipo_vivienda = models.ForeignKey(TipoVivienda, on_delete=models.PROTECT)  # Obligatorio
+    origen = models.ForeignKey(Origen, on_delete=models.CASCADE, blank=True, null=True)
+    subtipo_contacto = models.ForeignKey(SubtipoContacto, on_delete=models.CASCADE, blank=True, null=True)
+    resultado_cobertura = models.ForeignKey(ResultadoCobertura, on_delete=models.PROTECT, blank=True, null=True)
+    transferencia = models.ForeignKey(Transferencia, on_delete=models.PROTECT, blank=True, null=True)
+    tipo_vivienda = models.ForeignKey(TipoVivienda, on_delete=models.PROTECT, blank=True, null=True)
     tipo_base = models.ForeignKey(TipoBase, on_delete=models.SET_NULL, null=True, blank=True)
     plan_contrato = models.ForeignKey(TipoPlanContrato, on_delete=models.SET_NULL, null=True, blank=True)
-    distrito = models.ForeignKey(Distrito, on_delete=models.PROTECT)  # Obligatorio (incluye departamento y provincia)
+    distrito = models.ForeignKey(Distrito, on_delete=models.PROTECT, blank=True, null=True)
     sector = models.ForeignKey(Sector, on_delete=models.SET_NULL, null=True, blank=True)
-    direccion = models.CharField(max_length=255)  # Obligatorio
-    coordenadas = models.CharField(max_length=100)  # Obligatorio
+    direccion = models.CharField(max_length=255, blank=True, null=True)
+    coordenadas = models.CharField(max_length=100, blank=True, null=True)
     dueno = models.ForeignKey(User, on_delete=models.CASCADE)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
-    estado = models.BooleanField(default=False)  # False (0) = No convertido, True (1) = Convertido
+    estado = models.BooleanField(default=False)
 
     def clean(self):
         if self.numero_movil and len(self.numero_movil) < 9:
             raise ValidationError("El número móvil debe tener al menos 9 dígitos.")
 
-        # Validación para Transferencia si SubtipoContacto es 'Transferencia'
-        if self.subtipo_contacto.descripcion.lower() == "transferencia" and not self.transferencia:
+        if self.subtipo_contacto and self.subtipo_contacto.descripcion.lower() == "transferencia" and not self.transferencia:
             raise ValidationError({
                 "transferencia": "El campo 'transferencia' es obligatorio cuando el subtipo de contacto es 'Transferencia'."
             })
@@ -185,6 +184,13 @@ class TipoDocumento(models.Model):
 # Modelo Contrato
 class Contrato(models.Model):
     nombre_contrato = models.CharField(max_length=100)
+    nombre = models.CharField(max_length=100)  #  Nombre del cliente
+    apellido = models.CharField(max_length=100)  #  Apellido del cliente
+    plan_contrato = models.ForeignKey(TipoPlanContrato, on_delete=models.SET_NULL, null=True, blank=True)  #  Plan de contrato
+    tipo_documento = models.ForeignKey(TipoDocumento, on_delete=models.SET_NULL, null=True, blank=True)  #  Tipo de documento
+    numero_documento = models.CharField(max_length=20, blank=True, null=True)  # ✅ Número de documento
+    origen = models.ForeignKey(Origen, on_delete=models.SET_NULL, null=True, blank=True)  #  Origen del lead
+    coordenadas = models.CharField(max_length=100, blank=True, null=True)  #  Coordenadas
     lead = models.ForeignKey(Lead, on_delete=models.CASCADE)
     fecha_inicio = models.DateField(auto_now_add=True)
     observaciones = models.TextField(blank=True, null=True)

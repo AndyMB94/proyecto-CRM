@@ -1,7 +1,11 @@
+from rest_framework import serializers
+from rest_framework import generics
+from rest_framework.generics import ListAPIView
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .serializers import CustomTokenObtainPairSerializer, LeadSerializer, HistorialLeadSerializer
+from .serializers import CustomTokenObtainPairSerializer, LeadSerializer, HistorialLeadSerializer, UserSerializer, ContratoSerializer, DistritoSerializer, ProvinciaSerializer, SubtipoContactoSerializer, LeadsYContratosPorOrigenSerializer, GenericSerializer
 from rest_framework.authentication import BasicAuthentication, SessionAuthentication
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from django.shortcuts import get_object_or_404
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -41,245 +45,202 @@ class CustomTokenObtainPairView(TokenObtainPairView):###############
     serializer_class = CustomTokenObtainPairSerializer
 
 
-class CreateUserView(APIView):###############
+class CreateUserView(APIView):
     """
-    Endpoint para crear un usuario y asociarle un documento, teléfono, dirección, 
-    nombre y apellido.
+    Endpoint para crear un usuario con un perfil asociado y su documento.
     """
     authentication_classes = []  # Desactiva la autenticación
     permission_classes = [AllowAny]  # Permite acceso sin restricciones
 
     def post(self, request):
-        username = request.data.get("username")
-        password = request.data.get("password")
-        email = request.data.get("email")
-        first_name = request.data.get("first_name")
-        last_name = request.data.get("last_name")
-        tipo_documento_id = request.data.get("tipo_documento_id")
-        numero_documento = request.data.get("numero_documento")
-        telefono = request.data.get("telefono")
-        direccion = request.data.get("direccion")
+        serializer = UserSerializer(data=request.data)
 
-        if not username or not password or not tipo_documento_id or not numero_documento:
-            return Response({"error": "Faltan campos obligatorios."}, status=status.HTTP_400_BAD_REQUEST)
+        if serializer.is_valid():
+            try:
+                # Crear usuario
+                usuario = serializer.save()
 
-        try:
-            # Crear usuario
-            usuario = User.objects.create_user(
-                username=username,
-                password=password,
-                email=email,
-                first_name=first_name,
-                last_name=last_name,
-                is_staff=False,
-                is_superuser=False
-            )
+                # Crear o actualizar el perfil
+                profile = usuario.profile
+                profile.telefono = request.data.get("telefono")
+                profile.direccion = request.data.get("direccion")
+                profile.save()
 
-            # Crear o actualizar el perfil
-            profile = Profile.objects.get(user=usuario)
-            profile.telefono = telefono
-            profile.direccion = direccion
-            profile.save()
+                # Obtener tipo de documento
+                tipo_documento_id = request.data.get("tipo_documento_id")
+                numero_documento = request.data.get("numero_documento")
 
-            # Obtener tipo de documento
-            tipo_documento = TipoDocumento.objects.get(id=tipo_documento_id)
+                if tipo_documento_id and numero_documento:
+                    tipo_documento = TipoDocumento.objects.get(id=tipo_documento_id)
 
-            # Crear y asociar documento
-            Documento.objects.create(
-                tipo_documento=tipo_documento,
-                numero_documento=numero_documento,
-                user=usuario
-            )
+                    # Verificar si el documento ya existe
+                    if Documento.objects.filter(numero_documento=numero_documento).exists():
+                        return Response({"error": "El número de documento ya está registrado."}, status=status.HTTP_400_BAD_REQUEST)
 
-            return Response({"message": f"Usuario '{username}' creado con éxito."}, status=status.HTTP_201_CREATED)
+                    # Crear documento y asociarlo al usuario
+                    Documento.objects.create(
+                        tipo_documento=tipo_documento,
+                        numero_documento=numero_documento,
+                        user=usuario
+                    )
 
-        except TipoDocumento.DoesNotExist:
-            return Response({"error": "Tipo de documento no encontrado."}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"message": f"Usuario '{usuario.username}' creado con éxito."}, status=status.HTTP_201_CREATED)
+
+            except TipoDocumento.DoesNotExist:
+                return Response({"error": "Tipo de documento no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 
-class LeadListCreateView(APIView):###############
+
+class LeadListCreateView(APIView):
     """
     Endpoint para listar y crear leads.
-    Requiere autenticación.
     """
     permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        """
-        Devuelve el conjunto de datos de leads.
-        """
-        return Lead.objects.all()
 
     def get(self, request):
         """
         Devuelve una lista de leads.
         """
-        leads = self.get_queryset()
+        leads = Lead.objects.all()
         serializer = LeadSerializer(leads, many=True)
         return Response(serializer.data)
 
     def post(self, request):
         """
-        Crea un nuevo lead y su documento relacionado, permitiendo seleccionar un dueño.
+        Crea un nuevo lead y su documento relacionado.
         """
         data = request.data.copy()
+        usuario_actual = request.user  # Usuario autenticado que crea el lead
 
-        # Asigna el dueño autenticado si no se especifica en el payload
-        if "dueno" not in data or not data["dueno"]:
-            data["dueno"] = request.user.id
-
-        # Asegurar que el estado del lead sea 0 por defecto
-        data["estado"] = 0  
-
-        serializer = LeadSerializer(data=data)
+        serializer = LeadSerializer(data=data, context={'request': request})  # 🔥 Pasamos el usuario en el contexto
         if serializer.is_valid():
             try:
-                lead = serializer.save()  # Guarda el lead con el dueño especificado o autenticado
+                lead = serializer.save(dueno=usuario_actual)  # 🔥 Se asigna automáticamente
 
-                # Registrar el historial del lead
+                # 📌 REGISTRO EN HISTORIAL: Lead creado
                 HistorialLead.objects.create(
                     lead=lead,
-                    usuario=request.user,
-                    descripcion="Lead creado",
+                    usuario=usuario_actual,
+                    descripcion=f"Lead creado por {usuario_actual.first_name} {usuario_actual.last_name}."
                 )
 
-                # Crear el documento relacionado si se incluye
+                # 📌 CREACIÓN DEL DOCUMENTO ASOCIADO AL LEAD
                 tipo_documento_id = data.get('tipo_documento')
                 nro_documento = data.get('nro_documento')
+
                 if tipo_documento_id and nro_documento:
+                    # 🔍 Verificar si el documento ya existe en la base de datos
                     if Documento.objects.filter(numero_documento=nro_documento).exists():
-                        raise ValidationError({"nro_documento": "El número de documento ya está registrado."})
+                        return Response(
+                            {"error": "El número de documento ya está registrado."},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+
+                    # ✅ CREAR EL DOCUMENTO Y ASOCIARLO AL LEAD
                     Documento.objects.create(
                         tipo_documento_id=tipo_documento_id,
                         numero_documento=nro_documento,
-                        lead=lead,
-                        user=request.user
+                        lead=lead,  # 🔥 ASIGNAMOS EL LEAD
+                        user=usuario_actual  # 🔥 ASIGNAMOS EL USUARIO QUE LO CREÓ
                     )
 
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-            except ValidationError as ve:
-                return Response({"error": ve.detail}, status=status.HTTP_400_BAD_REQUEST)
             except Exception as e:
                 return Response({"error": f"Error al guardar el lead: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ConvertLeadToContractView(APIView):###############
-    """
-    Endpoint para convertir un lead en un contrato.
-    """
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request, lead_id):
-        """
-        Convierte un lead en un contrato y actualiza su estado a 1.
-        """
-        try:
-            lead = Lead.objects.get(id=lead_id)
-        except Lead.DoesNotExist:
-            return Response({"error": "Lead no encontrado"}, status=status.HTTP_404_NOT_FOUND)
-        
-        # Verificar si el lead ya ha sido convertido
-        if lead.estado == 1:
-            return Response({"error": "Este lead ya ha sido convertido en contrato anteriormente."},
-                            status=status.HTTP_400_BAD_REQUEST)
-
-        nombre_contrato = f"{lead.nombre} {lead.apellido}"
-        fecha_inicio = now().date()
-        observaciones = request.data.get('observaciones', '')
-
-        try:
-            contrato = Contrato.objects.create(
-                nombre_contrato=nombre_contrato,
-                lead=lead,
-                fecha_inicio=fecha_inicio,
-                observaciones=observaciones
-            )
-
-            # Actualizar estado del lead a 1
-            lead.estado = 1
-            lead.save()
-
-            # Registrar en el historial del lead solo si la conversion es exitosa
-            HistorialLead.objects.create(
-                lead=lead,
-                usuario=request.user,
-                descripcion=f"Lead convertido a contrato: {contrato.nombre_contrato}",
-            )
-
-            return Response({
-                "message": "Lead convertido a contrato con éxito.",
-                "contrato": {
-                    "id": contrato.id,
-                    "nombre_contrato": contrato.nombre_contrato,
-                    "fecha_inicio": contrato.fecha_inicio,
-                    "observaciones": contrato.observaciones
-                },
-                "lead": {
-                    "id": lead.id,
-                    "nombre": lead.nombre,
-                    "apellido": lead.apellido,
-                    "estado": lead.estado  # Se devuelve el estado actualizado
-                }
-            }, status=status.HTTP_201_CREATED)
-
-        except Exception as e:
-            return Response({"error": f"Error al convertir lead a contrato: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
-class LeadDetailView(APIView):###############
+class LeadDetailView(APIView):
     """
     Endpoint para obtener, actualizar o eliminar un lead específico.
     """
     permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
-        return Lead.objects.all()
-
     def get_object(self, pk):
-        try:
-            return self.get_queryset().get(pk=pk)
-        except Lead.DoesNotExist:
-            return None
+        return get_object_or_404(Lead, pk=pk)
 
     def get(self, request, pk):
+        """
+        Obtiene el detalle de un lead.
+        """
         lead = self.get_object(pk)
-        if lead is None:
-            return Response({"error": "Lead no encontrado"}, status=status.HTTP_404_NOT_FOUND)
         serializer = LeadSerializer(lead)
         return Response(serializer.data)
 
     def put(self, request, pk):
+        """
+        Actualiza un lead.
+        """
         lead = self.get_object(pk)
-        if lead is None:
-            return Response({"error": "Lead no encontrado"}, status=status.HTTP_404_NOT_FOUND)
-        
+        usuario_actual = request.user
         data = request.data.copy()
 
         # Evita que el estado se modifique manualmente
         if "estado" in data:
-            data.pop("estado") 
-        serializer = LeadSerializer(lead, data=request.data)
+            data.pop("estado")
+
+        # 📌 Guardar el subtipo de contacto antes de la actualización
+        tipo_contacto_anterior = lead.subtipo_contacto
+
+        serializer = LeadSerializer(lead, data=data)
         if serializer.is_valid():
             try:
-                serializer.save()
+                lead_actualizado = serializer.save()
 
-                # Registrar el historial del lead
-                HistorialLead.objects.create(
-                    lead=lead,
-                    usuario=request.user,
-                    descripcion="Lead actualizado",
-                )
+                # 📌 REGISTRO EN HISTORIAL: Si cambia `subtipo_contacto`, indicar seguimiento
+                if tipo_contacto_anterior != lead_actualizado.subtipo_contacto:
+                    HistorialLead.objects.create(
+                        lead=lead,
+                        usuario=usuario_actual,
+                        descripcion=f"Lead en seguimiento: Tipo de contacto modificado por {usuario_actual.first_name} {usuario_actual.last_name}."
+                    )
 
                 return Response(serializer.data)
+
             except Exception as e:
                 return Response({"error": f"Error al actualizar el lead: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def patch(self, request, pk):
+        """
+        Actualiza parcialmente un lead (solo los campos enviados).
+        """
+        lead = self.get_object(pk)
+        usuario_actual = request.user
+        data = request.data.copy()
+
+        # 📌 Guardar el subtipo de contacto antes de la actualización
+        tipo_contacto_anterior = lead.subtipo_contacto
+
+        serializer = LeadSerializer(lead, data=data, partial=True)  # 🔥 `partial=True` permite actualización parcial
+        if serializer.is_valid():
+            try:
+                lead_actualizado = serializer.save()
+
+                # 📌 REGISTRO EN HISTORIAL: Si cambia `subtipo_contacto`, indicar seguimiento
+                if tipo_contacto_anterior != lead_actualizado.subtipo_contacto:
+                    HistorialLead.objects.create(
+                        lead=lead,
+                        usuario=usuario_actual,
+                        descripcion=f"Lead en seguimiento: Tipo de contacto modificado por {usuario_actual.first_name} {usuario_actual.last_name}."
+                    )
+
+                return Response(serializer.data)
+
+            except Exception as e:
+                return Response({"error": f"Error al actualizar el lead: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
@@ -293,20 +254,21 @@ class LeadDetailView(APIView):###############
             return Response({"error": f"Error al eliminar el lead: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
 
+
 class LeadSearchByNumberView(APIView):
     """
     Endpoint para buscar leads por número de móvil.
     """
     permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
-        return Lead.objects.all()
-
     def get(self, request, numero_movil):
+        """
+        Busca leads por número de móvil.
+        """
         if len(numero_movil) < 5:
             return Response({"error": "Ingrese al menos 5 dígitos para la búsqueda."}, status=status.HTTP_400_BAD_REQUEST)
 
-        leads = self.get_queryset().filter(numero_movil__icontains=numero_movil)
+        leads = Lead.objects.filter(numero_movil__icontains=numero_movil)
         if not leads.exists():
             return Response({"message": "No se encontraron leads con ese número de móvil."}, status=status.HTTP_404_NOT_FOUND)
         
@@ -314,166 +276,213 @@ class LeadSearchByNumberView(APIView):
         return Response(serializer.data)
 
 
-class OwnerListView(APIView):###############
+class ConvertLeadToContractView(APIView):
     """
-    Endpoint para listar todos los dueños, incluyendo campos de perfil si están presentes.
+    Endpoint para convertir un lead en un contrato.
     """
-    permission_classes = [IsAuthenticated]  # Verifica que el usuario esté autenticado
+    permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def post(self, request, lead_id):
         """
-        Devuelve una lista de todos los usuarios (dueños) junto con su información de perfil.
+        Convierte un lead en un contrato.
         """
-        owners = User.objects.all()
-        data = [
-            {
-                "id": owner.id,
-                "username": owner.username,
-                "email": owner.email,
-                "telefono": getattr(owner.profile, 'telefono', None),
-                "direccion": getattr(owner.profile, 'direccion', None),
-            }
-            for owner in owners
-        ]
-        return Response(data, status=status.HTTP_200_OK)
+        lead = get_object_or_404(Lead, id=lead_id)
+        usuario_actual = request.user
 
-class ContratoListView(APIView):###############
+        if lead.estado == 1:
+            return Response({"error": "Este lead ya ha sido convertido en contrato anteriormente."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Obtener el documento asociado al lead (si existe)
+        documento = Documento.objects.filter(lead=lead).first()
+
+        # Construcción de datos del contrato
+        contrato_data = {
+            "nombre_contrato": f"{lead.nombre} {lead.apellido}",
+            "nombre": lead.nombre,
+            "apellido": lead.apellido,
+            "plan_contrato": lead.plan_contrato.id if lead.plan_contrato else None,
+            "tipo_documento": documento.tipo_documento.id if documento else None,
+            "numero_documento": documento.numero_documento if documento else None,
+            "origen": lead.origen.id if lead.origen else None,
+            "coordenadas": lead.coordenadas,
+            "lead": lead.id,
+            "fecha_inicio": now().date(),
+            "observaciones": request.data.get('observaciones', 'Contrato generado desde el lead'),
+        }
+
+        try:
+            contrato_serializer = ContratoSerializer(data=contrato_data)
+            if contrato_serializer.is_valid():
+                contrato = contrato_serializer.save()
+
+                # Actualizar estado del lead
+                lead.estado = 1
+                lead.save()
+
+                # 📌 REGISTRO EN HISTORIAL: Lead convertido a contrato
+                HistorialLead.objects.create(
+                    lead=lead,
+                    usuario=usuario_actual,
+                    descripcion=f"Lead convertido a contrato por {usuario_actual.first_name} {usuario_actual.last_name}."
+                )
+
+                return Response({
+                    "message": "Lead convertido a contrato con éxito.",
+                    "contrato": contrato_serializer.data,
+                    "lead": {
+                        "id": lead.id,
+                        "nombre": lead.nombre,
+                        "apellido": lead.apellido,
+                        "estado": lead.estado
+                    }
+                }, status=status.HTTP_201_CREATED)
+
+            return Response(contrato_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({"error": f"Error al convertir lead a contrato: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+class ContratoListView(ListAPIView):
     """
     Endpoint para listar todos los contratos.
     """
     queryset = Contrato.objects.all()
+    serializer_class = ContratoSerializer
     permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        """
-        Devuelve una lista de todos los contratos.
-        """
-        contratos = Contrato.objects.all()
-        data = [
-            {
-                "id": contrato.id,
-                "nombre_contrato": contrato.nombre_contrato,
-                "fecha_inicio": contrato.fecha_inicio,
-                "observaciones": contrato.observaciones,
-                "lead": {
-                    "id": contrato.lead.id,
-                    "nombre": contrato.lead.nombre,
-                    "apellido": contrato.lead.apellido,
-                },
-            }
-            for contrato in contratos
-        ]
-        return Response(data, status=status.HTTP_200_OK)
+    pagination_class = None
 
 
-class ProvinciaByDepartamentoView(APIView):
+class ProvinciaByDepartamentoView(ListAPIView):
     """
     Devuelve las provincias asociadas a un departamento.
     """
+    serializer_class = ProvinciaSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None
 
-    def get(self, request, departamento_id):
-        provincias = Provincia.objects.filter(departamento_id=departamento_id)
-        data = [{"id": provincia.id, "nombre": provincia.nombre_provincia} for provincia in provincias]
-        return Response(data, status=status.HTTP_200_OK)
+    def get_queryset(self):
+        departamento_id = self.kwargs['departamento_id']
+        return Provincia.objects.filter(departamento_id=departamento_id)
 
 
-class DistritoByProvinciaView(APIView):
+class DistritoByProvinciaView(ListAPIView):
     """
     Devuelve los distritos asociados a una provincia.
     """
+    serializer_class = DistritoSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None
 
-    def get(self, request, provincia_id):
-        distritos = Distrito.objects.filter(provincia_id=provincia_id)
-        data = [{"id": distrito.id, "nombre": distrito.nombre_distrito} for distrito in distritos]
-        return Response(data, status=status.HTTP_200_OK)
+    def get_queryset(self):
+        provincia_id = self.kwargs['provincia_id']
+        return Distrito.objects.filter(provincia_id=provincia_id)
 
 
-class SubtipoContactoByTipoContactoView(APIView):
+class SubtipoContactoByTipoContactoView(ListAPIView):
     """
     Devuelve los subtipos de contacto asociados a un tipo de contacto.
     """
+    serializer_class = SubtipoContactoSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None  # Deshabilita paginación
 
-    def get(self, request, tipo_contacto_id):
-        subtipos = SubtipoContacto.objects.filter(tipo_contacto_id=tipo_contacto_id)
-        data = [{"id": subtipo.id, "descripcion": subtipo.descripcion} for subtipo in subtipos]
-        return Response(data, status=status.HTTP_200_OK)
+    def get_queryset(self):
+        tipo_contacto_id = self.kwargs['tipo_contacto_id']
+        return SubtipoContacto.objects.filter(tipo_contacto_id=tipo_contacto_id)
     
-class HistorialPagination(PageNumberPagination):
-    page_size = 10
+
 
 class LeadHistorialView(APIView):
     """
-    Endpoint para obtener el historial de un lead específico.
+    Endpoint para obtener el historial de un lead específico SIN paginación.
     """
     permission_classes = [IsAuthenticated]
-    pagination_class = HistorialPagination
 
-    def get_queryset(self):
+    def get_queryset(self, lead_id):
         """
-        Devuelve el historial asociado al lead especificado en los argumentos de la vista.
+        Devuelve el historial asociado al lead especificado.
         """
-        lead_id = self.kwargs.get('lead_id')  # Obtiene el lead_id de los argumentos de la URL
         return HistorialLead.objects.filter(lead_id=lead_id).order_by('-fecha')
 
     def get(self, request, lead_id):
         """
-        Retorna el historial paginado del lead.
+        Retorna el historial completo del lead SIN paginación.
         """
         try:
-            queryset = self.get_queryset()
-            paginator = self.pagination_class()
-            paginated_historial = paginator.paginate_queryset(queryset, request)
-            serializer = HistorialLeadSerializer(paginated_historial, many=True)
-            return paginator.get_paginated_response(serializer.data)
+            queryset = self.get_queryset(lead_id)
+            serializer = HistorialLeadSerializer(queryset, many=True)
+            return Response(serializer.data)  # 🔥 Ahora devuelve solo la lista
+
         except Exception as e:
             return Response({"error": f"Error al obtener el historial del lead: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
 
-class GenericListView(APIView):
+
+class GenericListView(ListAPIView):
     """
     Endpoint genérico para listar elementos de tablas de referencia.
     """
-    permission_classes = [IsAuthenticated]  # Cambia si necesitas aplicar permisos más específicos.
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
 
-    def get_queryset(self, model):
-        """
-        Devuelve un queryset dinámico basado en el modelo proporcionado.
-        """
+    models_map = {
+        "tipo-documento": (TipoDocumento, "nombre_tipo"),
+        "resultado-cobertura": (ResultadoCobertura, "descripcion"),
+        "transferencia": (Transferencia, "descripcion"),
+        "tipo-vivienda": (TipoVivienda, "descripcion"),
+        "tipo-base": (TipoBase, "descripcion"),
+        "sector": (Sector, "nombre_sector"),
+        "origen": (Origen, "nombre_origen"),
+        "departamento": (Departamento, "nombre_departamento"),
+        "tipo-contacto": (TipoContacto, "nombre_tipo"),
+        "tipo-plan-contrato": (TipoPlanContrato, "descripcion"),
+    }
+
+    def get_queryset(self):
+        model_info = self.models_map.get(self.kwargs.get('model_name'))
+        
+        if not model_info:
+            return Response({"error": "Modelo no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        
+        model, _ = model_info
         return model.objects.all()
 
-    def get(self, request, model_name):
-        models_map = {
-            "tipo-documento": TipoDocumento,
-            "resultado-cobertura": ResultadoCobertura,
-            "transferencia": Transferencia,
-            "tipo-vivienda": TipoVivienda,
-            "tipo-base": TipoBase,
-            "sector": Sector,
-            "origen": Origen,
-            "departamento": Departamento,
-            "tipo-contacto": TipoContacto,
-            "tipo-plan-contrato": TipoPlanContrato,
-        }
-        model = models_map.get(model_name)
-        if not model:
-            return Response({"error": "Modelo no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+    def get_serializer_class(self):
+        """
+        Crea dinámicamente un serializer con los campos correctos.
+        """
+        model_info = self.models_map.get(self.kwargs.get('model_name'))
+        if model_info:
+            model, nombre_campo = model_info
 
-        queryset = self.get_queryset(model)
-        data = [{"id": obj.id, "nombre": str(obj)} for obj in queryset]
-        return Response(data, status=status.HTTP_200_OK)
+            # Crear un serializer dinámico en tiempo de ejecución y renombrar el campo a "nombre"
+            return type(
+                "DynamicGenericSerializer",
+                (serializers.ModelSerializer,),
+                {
+                    "Meta": type("Meta", (), {"model": model, "fields": ["id", "nombre"]}),  # ✅ Incluye 'nombre'
+                    "nombre": serializers.CharField(source=nombre_campo)  # Mapea "descripcion" a "nombre"
+                }
+            )
+
+        return GenericSerializer  # Retorna el serializer base si el modelo no es válido
 
 
-class LeadsYContratosPorOrigenAPIView(APIView):###############
+
+
+class LeadsYContratosPorOrigenAPIView(generics.GenericAPIView):
     """
     Endpoint para obtener la cantidad de leads y contratos por origen,
     filtrados por mes, año o rango de fechas.
     """
     permission_classes = [IsAuthenticated]
+    serializer_class = LeadsYContratosPorOrigenSerializer
 
     def get(self, request, *args, **kwargs):
         # Obtener los parámetros de filtro
@@ -533,21 +542,18 @@ class LeadsYContratosPorOrigenAPIView(APIView):###############
             for item in contratos_por_origen
         }
 
-        # Consolidar los datos
+        # Consolidar los datos con serializer
         data = [
-            {
-                'origen': item['origen__nombre_origen'],
-                'total_leads': item['total_leads'],
-                'total_contratos': contratos_dict.get(item['origen__nombre_origen'], 0),
-            }
+            {'origen': item['origen__nombre_origen'], 'total_leads': item['total_leads'],
+             'total_contratos': contratos_dict.get(item['origen__nombre_origen'], 0)}
             for item in leads_por_origen
         ]
 
-        # Agregar datos globales al response
+        # Serializar respuesta
         response = {
             "total_leads_global": total_leads_global,
             "total_contratos_global": total_contratos_global,
-            "detalle_por_origen": data
+            "detalle_por_origen": LeadsYContratosPorOrigenSerializer(data, many=True).data
         }
 
         return Response(response)

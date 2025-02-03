@@ -8,7 +8,6 @@ from .views import (
     DistritoByProvinciaView,
     SubtipoContactoByTipoContactoView,
     GenericListView,
-    OwnerListView,
     ContratoListView,
     ConvertLeadToContractView,
     CreateUserView,
@@ -33,9 +32,6 @@ urlpatterns = [
 
     # Gestión de contratos
     path('contratos/', ContratoListView.as_view(), name='contrato_list'),  # Listar contratos
-
-    # Gestión de dueños
-    path('owners/', OwnerListView.as_view(), name='owner_list'),  # Listar usuarios (dueños)
 
     # Gestión de ubicaciones
     path('provincias/<int:departamento_id>/', ProvinciaByDepartamentoView.as_view(), name='provincias_by_departamento'),  # Provincias por departamento
