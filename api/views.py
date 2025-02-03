@@ -112,65 +112,68 @@ class LeadListCreateView(APIView):
 
     def post(self, request):
         """
-        Crea un nuevo lead y su documento relacionado.
+        Crea un nuevo lead **solo si `numero_movil` no existe previamente**.
         """
         data = request.data.copy()
         usuario_actual = request.user  # Usuario autenticado que crea el lead
 
-        serializer = LeadSerializer(data=data, context={'request': request})  # 🔥 Pasamos el usuario en el contexto
+        # 🔍 **1️⃣ Verificar si el `numero_movil` ya existe**
+        numero_movil = data.get("numero_movil")
+        if Lead.objects.filter(numero_movil=numero_movil).exists():
+            return Response({"error": "El número móvil ya está registrado. No se ha creado el lead ni el documento."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = LeadSerializer(data=data, context={'request': request})
         if serializer.is_valid():
             try:
-                lead = serializer.save(dueno=usuario_actual)  # 🔥 Se asigna automáticamente
+                # ✅ **2️⃣ Crear el lead SOLO si el número móvil no existe**
+                lead = serializer.save(dueno=usuario_actual)
 
-                # 📌 REGISTRO EN HISTORIAL: Lead creado
+                # 📌 **3️⃣ Registrar historial de creación**
                 HistorialLead.objects.create(
                     lead=lead,
                     usuario=usuario_actual,
                     descripcion=f"Lead creado por {usuario_actual.first_name} {usuario_actual.last_name}."
                 )
 
-                # 📌 REGISTRO AUTOMÁTICO SI TIENE `tipo_contacto` Y `subtipo_contacto`
+                # 📌 **4️⃣ Si tiene `tipo_contacto` y `subtipo_contacto`, lo registramos en el historial**
                 if lead.subtipo_contacto:
-                    tipo_contacto = lead.subtipo_contacto.tipo_contacto  # ✅ Esto devuelve un objeto, no un string
-                    subtipo_contacto = lead.subtipo_contacto  # ✅ Esto también es un objeto
+                    tipo_contacto = lead.subtipo_contacto.tipo_contacto  # ✅ Objeto
+                    subtipo_contacto = lead.subtipo_contacto  # ✅ Objeto
 
-                HistorialLead.objects.create(
-                    lead=lead,
-                    usuario=usuario_actual,
-                    descripcion=f"Tipo de contacto: '{tipo_contacto.nombre_tipo}' | Subtipo de contacto: '{subtipo_contacto.descripcion}'.",
-                    tipo_contacto=tipo_contacto,  # 🔥 Asigna la clave foránea correctamente
-                    subtipo_contacto=subtipo_contacto  # 🔥 Asigna la clave foránea correctamente
-                )
+                    HistorialLead.objects.create(
+                        lead=lead,
+                        usuario=usuario_actual,
+                        descripcion=f"Tipo de contacto: '{tipo_contacto.nombre_tipo}' | Subtipo de contacto: '{subtipo_contacto.descripcion}'.",
+                        tipo_contacto=tipo_contacto,
+                        subtipo_contacto=subtipo_contacto
+                    )
 
-                # 📌 CREACIÓN DEL DOCUMENTO ASOCIADO AL LEAD
+                # 📌 **5️⃣ CREAR EL DOCUMENTO SOLO SI SE PROPORCIONÓ Y EL LEAD SE CREÓ**
                 tipo_documento_id = data.get('tipo_documento')
                 nro_documento = data.get('nro_documento')
 
                 if tipo_documento_id and nro_documento:
-                    # 🔍 Verificar si el documento ya existe en la base de datos
+                    # 🔍 **Verificar si el documento ya existe**
                     if Documento.objects.filter(numero_documento=nro_documento).exists():
-                        return Response(
-                            {"error": "El número de documento ya está registrado."},
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
+                        return Response({"error": "El número de documento ya está registrado."},
+                                        status=status.HTTP_400_BAD_REQUEST)
 
-                    # ✅ CREAR EL DOCUMENTO Y ASOCIARLO AL LEAD
+                    # ✅ **Crear el documento SOLO si el lead fue creado correctamente**
                     Documento.objects.create(
                         tipo_documento_id=tipo_documento_id,
                         numero_documento=nro_documento,
-                        lead=lead,  # 🔥 ASIGNAMOS EL LEAD
-                        user=usuario_actual  # 🔥 ASIGNAMOS EL USUARIO QUE LO CREÓ
+                        lead=lead,
+                        user=usuario_actual
                     )
 
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
 
             except Exception as e:
-                return Response({"error": f"Error al guardar el lead: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": f"Error al guardar el lead: {str(e)}"},
+                                status=status.HTTP_400_BAD_REQUEST)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-
 
 
 

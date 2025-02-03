@@ -178,7 +178,10 @@ class LeadSerializer(serializers.ModelSerializer):
             'transferencia', 'tipo_vivienda', 'tipo_base', 'plan_contrato',
             'distrito', 'sector', 'direccion', 'coordenadas', 'dueno', 'fecha_creacion', 'estado'
         ]
-        extra_kwargs = {'dueno': {'read_only': True}}
+        extra_kwargs = {
+            'numero_movil': {'required': True},  # ✅ Solo este campo es obligatorio
+            'dueno': {'read_only': True},
+        }
     
     def get_dueno(self, obj):
         """ 🔥 Devuelve el nombre completo del dueño en vez de solo el ID """
@@ -187,18 +190,21 @@ class LeadSerializer(serializers.ModelSerializer):
         return None  # En caso de que no haya dueño
 
     def validate_numero_movil(self, value):
-        if value and len(value) < 9:
+        """ 🔥 Valida que el número tenga al menos 9 dígitos y sea único """
+        if len(value) < 9:
             raise serializers.ValidationError("El número móvil debe tener al menos 9 dígitos.")
-        if Lead.objects.filter(numero_movil=value).exclude(id=self.instance.id if self.instance else None).exists():
+        if Lead.objects.filter(numero_movil=value).exists():
             raise serializers.ValidationError("El número móvil ya está registrado.")
         return value
 
     def validate_correo(self, value):
+        """ 🔥 Valida formato de correo electrónico """
         if value and not serializers.EmailField().run_validation(value):
             raise serializers.ValidationError("El correo electrónico no es válido.")
         return value
 
     def validate(self, data):
+        """ 🔥 Validaciones adicionales para subtipo_contacto y transferencia """
         subtipo_contacto = data.get("subtipo_contacto")
         transferencia = data.get("transferencia")
 
@@ -209,6 +215,10 @@ class LeadSerializer(serializers.ModelSerializer):
                     raise ValidationError({
                         "transferencia": "El campo 'transferencia' es obligatorio cuando el subtipo de contacto es 'Transferencia'."
                     })
+
+        # 🔥 Si no hay `numero_movil`, el lead NO se crea
+        if "numero_movil" not in data or not data["numero_movil"]:
+            raise serializers.ValidationError({"numero_movil": "Este campo es obligatorio para crear un lead."})
 
         return data
 
