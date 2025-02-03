@@ -248,10 +248,13 @@ class TipoDocumentoSerializer(serializers.ModelSerializer):
 class HistorialLeadSerializer(serializers.ModelSerializer):
     usuario = UserSerializer()
     lead = serializers.PrimaryKeyRelatedField(read_only=True)
+    tipo_contacto = serializers.StringRelatedField()  # 🔥 Muestra el nombre del tipo de contacto
+    subtipo_contacto = serializers.StringRelatedField()  # 🔥 Muestra la descripción del subtipo de contacto
 
     class Meta:
         model = HistorialLead
-        fields = ['id', 'lead', 'usuario', 'descripcion', 'fecha']
+        fields = ['id', 'lead', 'usuario', 'tipo_contacto', 'subtipo_contacto', 'descripcion', 'fecha']
+
 
 # 🔹 Serializer para Leads y Contratos por Origen
 class LeadsYContratosPorOrigenSerializer(serializers.Serializer):

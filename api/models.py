@@ -205,6 +205,8 @@ class HistorialLead(models.Model):
     usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     fecha = models.DateTimeField(auto_now_add=True)
     descripcion = models.TextField()  # Descripción del cambio o interacción.
+    tipo_contacto = models.ForeignKey(TipoContacto, on_delete=models.SET_NULL, null=True, blank=True)  # Nuevo campo
+    subtipo_contacto = models.ForeignKey(SubtipoContacto, on_delete=models.SET_NULL, null=True, blank=True)  # Nuevo campo
 
     def __str__(self):
         return f"Lead: {self.lead} | {self.descripcion} | {self.fecha}"

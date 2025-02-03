@@ -129,6 +129,19 @@ class LeadListCreateView(APIView):
                     descripcion=f"Lead creado por {usuario_actual.first_name} {usuario_actual.last_name}."
                 )
 
+                # 📌 REGISTRO AUTOMÁTICO SI TIENE `tipo_contacto` Y `subtipo_contacto`
+                if lead.subtipo_contacto:
+                    tipo_contacto = lead.subtipo_contacto.tipo_contacto  # ✅ Esto devuelve un objeto, no un string
+                    subtipo_contacto = lead.subtipo_contacto  # ✅ Esto también es un objeto
+
+                HistorialLead.objects.create(
+                    lead=lead,
+                    usuario=usuario_actual,
+                    descripcion=f"Tipo de contacto: '{tipo_contacto.nombre_tipo}' | Subtipo de contacto: '{subtipo_contacto.descripcion}'.",
+                    tipo_contacto=tipo_contacto,  # 🔥 Asigna la clave foránea correctamente
+                    subtipo_contacto=subtipo_contacto  # 🔥 Asigna la clave foránea correctamente
+                )
+
                 # 📌 CREACIÓN DEL DOCUMENTO ASOCIADO AL LEAD
                 tipo_documento_id = data.get('tipo_documento')
                 nro_documento = data.get('nro_documento')
@@ -160,6 +173,7 @@ class LeadListCreateView(APIView):
 
 
 
+
 class LeadDetailView(APIView):
     """
     Endpoint para obtener, actualizar o eliminar un lead específico.
@@ -185,24 +199,28 @@ class LeadDetailView(APIView):
         usuario_actual = request.user
         data = request.data.copy()
 
-        # Evita que el estado se modifique manualmente
-        if "estado" in data:
-            data.pop("estado")
-
-        # 📌 Guardar el subtipo de contacto antes de la actualización
-        tipo_contacto_anterior = lead.subtipo_contacto
+        tipo_contacto_anterior = lead.subtipo_contacto.tipo_contacto if lead.subtipo_contacto else None
+        subtipo_contacto_anterior = lead.subtipo_contacto
 
         serializer = LeadSerializer(lead, data=data)
         if serializer.is_valid():
             try:
                 lead_actualizado = serializer.save()
 
-                # 📌 REGISTRO EN HISTORIAL: Si cambia `subtipo_contacto`, indicar seguimiento
-                if tipo_contacto_anterior != lead_actualizado.subtipo_contacto:
+                cambios = []
+                if subtipo_contacto_anterior != lead_actualizado.subtipo_contacto:
+                    cambios.append(f"Subtipo de contacto cambiado de '{subtipo_contacto_anterior}' a '{lead_actualizado.subtipo_contacto}'.")
+
+                if tipo_contacto_anterior != (lead_actualizado.subtipo_contacto.tipo_contacto if lead_actualizado.subtipo_contacto else None):
+                    cambios.append(f"Tipo de contacto cambiado de '{tipo_contacto_anterior}' a '{lead_actualizado.subtipo_contacto.tipo_contacto}'.")
+
+                if cambios:
                     HistorialLead.objects.create(
                         lead=lead,
                         usuario=usuario_actual,
-                        descripcion=f"Lead en seguimiento: Tipo de contacto modificado por {usuario_actual.first_name} {usuario_actual.last_name}."
+                        descripcion=" | ".join(cambios),
+                        tipo_contacto=lead_actualizado.subtipo_contacto.tipo_contacto if lead_actualizado.subtipo_contacto else None,
+                        subtipo_contacto=lead_actualizado.subtipo_contacto
                     )
 
                 return Response(serializer.data)
@@ -211,7 +229,7 @@ class LeadDetailView(APIView):
                 return Response({"error": f"Error al actualizar el lead: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
     def patch(self, request, pk):
         """
         Actualiza parcialmente un lead (solo los campos enviados).
@@ -220,20 +238,28 @@ class LeadDetailView(APIView):
         usuario_actual = request.user
         data = request.data.copy()
 
-        # 📌 Guardar el subtipo de contacto antes de la actualización
-        tipo_contacto_anterior = lead.subtipo_contacto
+        tipo_contacto_anterior = lead.subtipo_contacto.tipo_contacto if lead.subtipo_contacto else None
+        subtipo_contacto_anterior = lead.subtipo_contacto
 
-        serializer = LeadSerializer(lead, data=data, partial=True)  # 🔥 `partial=True` permite actualización parcial
+        serializer = LeadSerializer(lead, data=data, partial=True)
         if serializer.is_valid():
             try:
                 lead_actualizado = serializer.save()
 
-                # 📌 REGISTRO EN HISTORIAL: Si cambia `subtipo_contacto`, indicar seguimiento
-                if tipo_contacto_anterior != lead_actualizado.subtipo_contacto:
+                cambios = []
+                if subtipo_contacto_anterior != lead_actualizado.subtipo_contacto:
+                    cambios.append(f"Subtipo de contacto cambiado de '{subtipo_contacto_anterior}' a '{lead_actualizado.subtipo_contacto}'.")
+
+                if tipo_contacto_anterior != (lead_actualizado.subtipo_contacto.tipo_contacto if lead_actualizado.subtipo_contacto else None):
+                    cambios.append(f"Tipo de contacto cambiado de '{tipo_contacto_anterior}' a '{lead_actualizado.subtipo_contacto.tipo_contacto}'.")
+
+                if cambios:
                     HistorialLead.objects.create(
                         lead=lead,
                         usuario=usuario_actual,
-                        descripcion=f"Lead en seguimiento: Tipo de contacto modificado por {usuario_actual.first_name} {usuario_actual.last_name}."
+                        descripcion=" | ".join(cambios),
+                        tipo_contacto=lead_actualizado.subtipo_contacto.tipo_contacto if lead_actualizado.subtipo_contacto else None,
+                        subtipo_contacto=lead_actualizado.subtipo_contacto
                     )
 
                 return Response(serializer.data)
@@ -290,12 +316,11 @@ class ConvertLeadToContractView(APIView):
         usuario_actual = request.user
 
         if lead.estado == 1:
-            return Response({"error": "Este lead ya ha sido convertido en contrato anteriormente."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Este lead ya ha sido convertido en contrato anteriormente."},
+                            status=status.HTTP_400_BAD_REQUEST)
 
-        # Obtener el documento asociado al lead (si existe)
         documento = Documento.objects.filter(lead=lead).first()
 
-        # Construcción de datos del contrato
         contrato_data = {
             "nombre_contrato": f"{lead.nombre} {lead.apellido}",
             "nombre": lead.nombre,
@@ -315,11 +340,9 @@ class ConvertLeadToContractView(APIView):
             if contrato_serializer.is_valid():
                 contrato = contrato_serializer.save()
 
-                # Actualizar estado del lead
                 lead.estado = 1
                 lead.save()
 
-                # 📌 REGISTRO EN HISTORIAL: Lead convertido a contrato
                 HistorialLead.objects.create(
                     lead=lead,
                     usuario=usuario_actual,
@@ -340,7 +363,8 @@ class ConvertLeadToContractView(APIView):
             return Response(contrato_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
-            return Response({"error": f"Error al convertir lead a contrato: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": f"Error al convertir lead a contrato: {str(e)}"},
+                            status=status.HTTP_400_BAD_REQUEST)
 
 
 
