@@ -184,19 +184,21 @@ class TipoDocumento(models.Model):
 # Modelo Contrato
 class Contrato(models.Model):
     nombre_contrato = models.CharField(max_length=100)
-    nombre = models.CharField(max_length=100)  #  Nombre del cliente
-    apellido = models.CharField(max_length=100)  #  Apellido del cliente
-    plan_contrato = models.ForeignKey(TipoPlanContrato, on_delete=models.SET_NULL, null=True, blank=True)  #  Plan de contrato
-    tipo_documento = models.ForeignKey(TipoDocumento, on_delete=models.SET_NULL, null=True, blank=True)  #  Tipo de documento
-    numero_documento = models.CharField(max_length=20, blank=True, null=True)  # ✅ Número de documento
-    origen = models.ForeignKey(Origen, on_delete=models.SET_NULL, null=True, blank=True)  #  Origen del lead
-    coordenadas = models.CharField(max_length=100, blank=True, null=True)  #  Coordenadas
+    nombre = models.CharField(max_length=100)  # Nombre del cliente
+    apellido = models.CharField(max_length=100)  # Apellido del cliente
+    numero_movil = models.CharField(max_length=15)  # ✅ Nuevo campo agregado
+    plan_contrato = models.ForeignKey(TipoPlanContrato, on_delete=models.SET_NULL, null=True, blank=True)  # Plan de contrato
+    tipo_documento = models.ForeignKey(TipoDocumento, on_delete=models.SET_NULL, null=True, blank=True)  # Tipo de documento
+    numero_documento = models.CharField(max_length=20, blank=True, null=True)  # Número de documento
+    origen = models.ForeignKey(Origen, on_delete=models.SET_NULL, null=True, blank=True)  # Origen del lead
+    coordenadas = models.CharField(max_length=100, blank=True, null=True)  # Coordenadas
     lead = models.ForeignKey(Lead, on_delete=models.CASCADE)
     fecha_inicio = models.DateField(auto_now_add=True)
     observaciones = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return self.nombre_contrato
+
 
 
 # Modelo HistorialLead

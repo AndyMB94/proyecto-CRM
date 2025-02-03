@@ -325,6 +325,7 @@ class ConvertLeadToContractView(APIView):
             "nombre_contrato": f"{lead.nombre} {lead.apellido}",
             "nombre": lead.nombre,
             "apellido": lead.apellido,
+            "numero_movil": lead.numero_movil,  # ✅ Se copia el número móvil
             "plan_contrato": lead.plan_contrato.id if lead.plan_contrato else None,
             "tipo_documento": documento.tipo_documento.id if documento else None,
             "numero_documento": documento.numero_documento if documento else None,
@@ -365,6 +366,7 @@ class ConvertLeadToContractView(APIView):
         except Exception as e:
             return Response({"error": f"Error al convertir lead a contrato: {str(e)}"},
                             status=status.HTTP_400_BAD_REQUEST)
+
 
 
 

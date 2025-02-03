@@ -220,10 +220,11 @@ class ContratoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contrato
         fields = [
-            'id', 'nombre_contrato', 'nombre', 'apellido', 'plan_contrato',
+            'id', 'nombre_contrato', 'nombre', 'apellido', 'numero_movil', 'plan_contrato',
             'tipo_documento', 'numero_documento', 'origen', 'coordenadas',
             'fecha_inicio', 'observaciones', 'lead'
         ]
+
 
 
 # 🔹 Serializer para Documentos
