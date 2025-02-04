@@ -257,13 +257,21 @@ class LeadSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         """ 🔥 Validaciones adicionales para subtipo_contacto y transferencia """
+
+        # Obtener subtipo_contacto y transferencia
         subtipo_contacto = data.get("subtipo_contacto")
         transferencia = data.get("transferencia")
 
-        if subtipo_contacto and subtipo_contacto.descripcion.lower() == "transferencia" and not transferencia:
-            raise serializers.ValidationError({
-                "transferencia": "El campo 'transferencia' es obligatorio cuando el subtipo de contacto es 'Transferencia'."
-            })
+        # 🔍 Si hay subtipo_contacto, verificamos si pertenece a 'No Contacto' y si es 'Transferencia'
+        if subtipo_contacto:
+            tipo_contacto = subtipo_contacto.tipo_contacto  # Obtiene el tipo de contacto relacionado
+
+            if tipo_contacto and tipo_contacto.nombre_tipo == "No Contacto" and subtipo_contacto.descripcion == "Transferencia":
+                # 🚨 Si el subtipo es 'Transferencia' pero transferencia es NULL, lanzar error
+                if not transferencia:
+                    raise serializers.ValidationError({
+                        "transferencia": "El campo 'transferencia' es obligatorio cuando el subtipo de contacto es 'Transferencia'."
+                    })
 
         return data
 
