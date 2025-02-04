@@ -13,7 +13,9 @@ from .views import (
     CreateUserView,
     LeadHistorialView,
     LeadsYContratosPorOrigenAPIView,
-    ContratoDetailView
+    ContratoDetailView,
+    UserDetailView,
+    ChangePasswordView
 )
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -24,6 +26,12 @@ urlpatterns = [
 
     # Gestión de usuarios
     path('crear-usuario/', CreateUserView.as_view(), name='crear_usuario'),
+
+    path('usuarios/cambiar-password/', ChangePasswordView.as_view(), name='cambiar_password'),
+
+    # Gestión de usuarios
+    path('usuarios/<int:user_id>/', UserDetailView.as_view(), name='user_detail'),  # Obtener detalles del usuario
+
 
     # Gestión de leads
     path('leads/', LeadListCreateView.as_view(), name='lead_list_create'),  # Listar y crear leads

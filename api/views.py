@@ -2,7 +2,7 @@ from rest_framework import serializers
 from rest_framework import generics
 from rest_framework.generics import RetrieveUpdateDestroyAPIView, ListAPIView
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .serializers import CustomTokenObtainPairSerializer, LeadSerializer, HistorialLeadSerializer, UserSerializer, ContratoSerializer, DistritoSerializer, ProvinciaSerializer, SubtipoContactoSerializer, LeadsYContratosPorOrigenSerializer, GenericSerializer
+from .serializers import CustomTokenObtainPairSerializer, LeadSerializer, HistorialLeadSerializer, UserSerializer, ContratoSerializer, DistritoSerializer, ProvinciaSerializer, SubtipoContactoSerializer, LeadsYContratosPorOrigenSerializer, GenericSerializer, ChangePasswordSerializer
 from rest_framework.authentication import BasicAuthentication, SessionAuthentication
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.shortcuts import get_object_or_404
@@ -94,6 +94,38 @@ class CreateUserView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class UserDetailView(APIView):
+    """
+    Endpoint para obtener los detalles de un usuario por su ID.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, user_id):
+        """
+        Obtiene la información de un usuario, su perfil y su documento.
+        """
+        user = get_object_or_404(User, id=user_id)
+        serializer = UserSerializer(user)
+        return Response(serializer.data)
+
+
+class ChangePasswordView(APIView):
+    """
+    Endpoint para que el usuario autenticado cambie su propia contraseña.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data, context={'request': request})
+
+        if serializer.is_valid():
+            user = request.user
+            user.set_password(serializer.validated_data['new_password'])  # Cambia la contraseña
+            user.save()
+
+            return Response({"message": "Contraseña actualizada correctamente."}, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class LeadListCreateView(APIView):

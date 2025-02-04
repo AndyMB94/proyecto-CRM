@@ -2,6 +2,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.exceptions import AuthenticationFailed, ValidationError
 from django.contrib.auth import authenticate
 from rest_framework import serializers
+import re
 from .models import (
     Profile, Departamento, Provincia, Distrito, Origen, TipoContacto,
     SubtipoContacto, ResultadoCobertura, Transferencia, TipoVivienda,
@@ -9,6 +10,7 @@ from .models import (
     Contrato, HistorialLead
 )
 from django.contrib.auth.models import User
+from django.contrib.auth.hashers import check_password
 
 
 # 🔹 Serializer para obtener el Token JWT con información adicional
@@ -72,10 +74,12 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     profile = ProfileSerializer(required=False)
+    tipo_documento = serializers.SerializerMethodField()
+    numero_documento = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'password', 'email', 'first_name', 'last_name', 'profile']
+        fields = ['id', 'username', 'password', 'email', 'first_name', 'last_name', 'profile', 'tipo_documento', 'numero_documento']
         extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):
@@ -86,7 +90,52 @@ class UserSerializer(serializers.ModelSerializer):
         Profile.objects.filter(user=user).update(**profile_data)
 
         return user
+    def get_tipo_documento(self, obj):
+        """ 🔥 Obtiene el tipo de documento del usuario """
+        documento = Documento.objects.filter(user=obj).first()
+        if documento and documento.tipo_documento:
+            return {
+                "id": documento.tipo_documento.id,
+                "nombre_tipo": documento.tipo_documento.nombre_tipo
+            }
+        return None  
 
+    def get_numero_documento(self, obj):
+        """ 🔥 Obtiene el número de documento del usuario """
+        documento = Documento.objects.filter(user=obj).first()
+        return documento.numero_documento if documento else None
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    """
+    Serializer para cambiar la contraseña del usuario autenticado.
+    """
+    old_password = serializers.CharField(required=True, write_only=True)
+    new_password = serializers.CharField(required=True, write_only=True)
+    confirm_new_password = serializers.CharField(required=True, write_only=True)
+
+    def validate_old_password(self, value):
+        """ 🔥 Verifica que la contraseña actual sea correcta """
+        user = self.context['request'].user
+        if not check_password(value, user.password):
+            raise serializers.ValidationError("La contraseña actual es incorrecta.")
+        return value
+
+    def validate_new_password(self, value):
+        """ 🔥 Valida que la nueva contraseña sea segura """
+        if len(value) < 8:
+            raise serializers.ValidationError("La nueva contraseña debe tener al menos 8 caracteres.")
+        if not any(char.isdigit() for char in value):
+            raise serializers.ValidationError("La nueva contraseña debe contener al menos un número.")
+        if not any(char.isupper() for char in value):
+            raise serializers.ValidationError("La nueva contraseña debe contener al menos una mayúscula.")
+        return value
+
+    def validate(self, data):
+        """ 🔥 Verifica que `new_password` y `confirm_new_password` coincidan """
+        if data['new_password'] != data['confirm_new_password']:
+            raise serializers.ValidationError({"confirm_new_password": "Las contraseñas no coinciden."})
+        return data
 
 # 🔹 Serializers para Ubicación
 class DepartamentoSerializer(serializers.ModelSerializer):
@@ -181,6 +230,8 @@ class LeadSerializer(serializers.ModelSerializer):
     distrito = serializers.PrimaryKeyRelatedField(queryset=Distrito.objects.all(), required=False, allow_null=True)
     sector = serializers.PrimaryKeyRelatedField(queryset=Sector.objects.all(), required=False, allow_null=True)
     tipo_contacto = serializers.SerializerMethodField()
+    tipo_documento = serializers.SerializerMethodField()  # ✅ Muestra el tipo de documento del lead
+    numero_documento = serializers.SerializerMethodField()  # ✅ Muestra el número de documento
 
     class Meta:
         model = Lead
@@ -188,7 +239,8 @@ class LeadSerializer(serializers.ModelSerializer):
             'id', 'nombre', 'apellido', 'numero_movil', 'nombre_compania',
             'correo', 'cargo', 'origen', 'tipo_contacto', 'subtipo_contacto', 'resultado_cobertura',
             'transferencia', 'tipo_vivienda', 'tipo_base', 'plan_contrato',
-            'distrito', 'sector', 'direccion', 'coordenadas', 'dueno', 'fecha_creacion', 'estado'
+            'distrito', 'sector', 'direccion', 'coordenadas', 'dueno', 'fecha_creacion', 'estado',
+            'tipo_documento', 'numero_documento'
         ]
         extra_kwargs = {
             'numero_movil': {'required': True},  # ✅ Solo este campo es obligatorio
@@ -209,6 +261,21 @@ class LeadSerializer(serializers.ModelSerializer):
     def get_dueno(self, obj):
         """ 🔥 Devuelve el nombre completo del dueño """
         return f"{obj.dueno.first_name} {obj.dueno.last_name}" if obj.dueno else None
+
+    def get_tipo_documento(self, obj):
+        """ 🔥 Obtiene el tipo de documento del lead """
+        documento = Documento.objects.filter(lead=obj).first()
+        if documento and documento.tipo_documento:
+            return {
+                "id": documento.tipo_documento.id,
+                "nombre_tipo": documento.tipo_documento.nombre_tipo
+            }
+        return None  # Si no hay documento, devuelve None
+
+    def get_numero_documento(self, obj):
+        """ 🔥 Obtiene el número de documento del lead """
+        documento = Documento.objects.filter(lead=obj).first()
+        return documento.numero_documento if documento else None
 
     # 🔥 Métodos personalizados para devolver ID y Nombre respetando nombres de tablas
     def get_origen(self, obj):
@@ -340,6 +407,15 @@ class LeadSerializer(serializers.ModelSerializer):
                 "id": instance.sector.id,
                 "nombre_sector": instance.sector.nombre_sector
             }
+
+        # 🔥 Agregar tipo_documento y numero_documento
+        documento = Documento.objects.filter(lead=instance).first()
+        if documento:
+            representation['tipo_documento'] = {
+                "id": documento.tipo_documento.id,
+                "nombre_tipo": documento.tipo_documento.nombre_tipo
+            }
+            representation['numero_documento'] = documento.numero_documento
 
         return representation
 
