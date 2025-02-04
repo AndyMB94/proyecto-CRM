@@ -170,11 +170,23 @@ class SectorSerializer(serializers.ModelSerializer):
 class LeadSerializer(serializers.ModelSerializer):
     dueno = serializers.SerializerMethodField()  # ✅ Muestra el nombre y apellido del dueño
 
+    # 🔥 Serialización de claves foráneas con el mismo formato que en la base de datos
+    origen = serializers.SerializerMethodField()
+    subtipo_contacto = serializers.SerializerMethodField()
+    resultado_cobertura = serializers.SerializerMethodField()
+    transferencia = serializers.SerializerMethodField()
+    tipo_vivienda = serializers.SerializerMethodField()
+    tipo_base = serializers.SerializerMethodField()
+    plan_contrato = serializers.SerializerMethodField()
+    distrito = serializers.SerializerMethodField()
+    sector = serializers.SerializerMethodField()
+    tipo_contacto = serializers.SerializerMethodField()
+
     class Meta:
         model = Lead
         fields = [
             'id', 'nombre', 'apellido', 'numero_movil', 'nombre_compania',
-            'correo', 'cargo', 'origen', 'subtipo_contacto', 'resultado_cobertura',
+            'correo', 'cargo', 'origen', 'tipo_contacto', 'subtipo_contacto', 'resultado_cobertura',
             'transferencia', 'tipo_vivienda', 'tipo_base', 'plan_contrato',
             'distrito', 'sector', 'direccion', 'coordenadas', 'dueno', 'fecha_creacion', 'estado'
         ]
@@ -182,12 +194,51 @@ class LeadSerializer(serializers.ModelSerializer):
             'numero_movil': {'required': True},  # ✅ Solo este campo es obligatorio
             'dueno': {'read_only': True},
         }
+
+    def get_tipo_contacto(self, obj):
+        """
+        Devuelve el tipo de contacto asociado al subtipo de contacto del lead.
+        """
+        if obj.subtipo_contacto and obj.subtipo_contacto.tipo_contacto:
+            return {
+                "id": obj.subtipo_contacto.tipo_contacto.id,
+                "nombre_tipo": obj.subtipo_contacto.tipo_contacto.nombre_tipo
+            }
+        return None  # Si no hay subtipo de contacto, devuelve None
     
     def get_dueno(self, obj):
         """ 🔥 Devuelve el nombre completo del dueño en vez de solo el ID """
         if obj.dueno:
             return f"{obj.dueno.first_name} {obj.dueno.last_name}"  # ✅ Retorna 'Nombre Apellido'
         return None  # En caso de que no haya dueño
+
+    # 🔥 Métodos personalizados para devolver ID y Nombre respetando nombres de tablas
+    def get_origen(self, obj):
+        return {"id": obj.origen.id, "nombre_origen": obj.origen.nombre_origen} if obj.origen else None
+
+    def get_subtipo_contacto(self, obj):
+        return {"id": obj.subtipo_contacto.id, "descripcion": obj.subtipo_contacto.descripcion} if obj.subtipo_contacto else None
+
+    def get_resultado_cobertura(self, obj):
+        return {"id": obj.resultado_cobertura.id, "descripcion": obj.resultado_cobertura.descripcion} if obj.resultado_cobertura else None
+
+    def get_transferencia(self, obj):
+        return {"id": obj.transferencia.id, "descripcion": obj.transferencia.descripcion} if obj.transferencia else None
+
+    def get_tipo_vivienda(self, obj):
+        return {"id": obj.tipo_vivienda.id, "descripcion": obj.tipo_vivienda.descripcion} if obj.tipo_vivienda else None
+
+    def get_tipo_base(self, obj):
+        return {"id": obj.tipo_base.id, "descripcion": obj.tipo_base.descripcion} if obj.tipo_base else None
+
+    def get_plan_contrato(self, obj):
+        return {"id": obj.plan_contrato.id, "descripcion": obj.plan_contrato.descripcion} if obj.plan_contrato else None
+
+    def get_distrito(self, obj):
+        return {"id": obj.distrito.id, "nombre_distrito": obj.distrito.nombre_distrito} if obj.distrito else None
+
+    def get_sector(self, obj):
+        return {"id": obj.sector.id, "nombre_sector": obj.sector.nombre_sector} if obj.sector else None
 
     def validate_numero_movil(self, value):
         """ 🔥 Valida que el número tenga al menos 9 dígitos y sea único """

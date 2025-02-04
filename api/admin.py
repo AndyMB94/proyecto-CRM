@@ -21,7 +21,7 @@ from .models import (
 )
 
 
-# Configuración personalizada para Profile
+# Configuración para Profile
 class ProfileAdmin(admin.ModelAdmin):
     list_display = ('id', 'user', 'telefono', 'direccion', 'fecha_creacion')
     search_fields = ('user__username', 'user__email', 'telefono', 'direccion')
@@ -188,21 +188,24 @@ admin.site.register(TipoDocumento, TipoDocumentoAdmin)
 
 # Configuración para Contrato
 class ContratoAdmin(admin.ModelAdmin):
-    list_display = ('id', 'nombre_contrato', 'nombre', 'apellido', 'plan_contrato', 'tipo_documento', 'numero_documento', 'origen', 'coordenadas', 'lead', 'fecha_inicio', 'observaciones')
+    list_display = (
+        'id', 'nombre_contrato', 'nombre', 'apellido', 'numero_movil',  # ✅ Agregado número móvil
+        'plan_contrato', 'tipo_documento', 'numero_documento', 'origen',
+        'coordenadas', 'lead', 'fecha_inicio', 'observaciones'
+    )
     list_filter = ('fecha_inicio', 'origen', 'plan_contrato')
-    search_fields = ('nombre_contrato', 'nombre', 'apellido', 'numero_documento')
+    search_fields = ('nombre_contrato', 'nombre', 'apellido', 'numero_movil', 'numero_documento')  # ✅ Agregado número móvil
     ordering = ('fecha_inicio',)
 
 
 admin.site.register(Contrato, ContratoAdmin)
 
 
-
 # Configuración para HistorialLead
 class HistorialLeadAdmin(admin.ModelAdmin):
-    list_display = ('id', 'lead', 'usuario', 'fecha', 'descripcion')
-    list_filter = ('usuario', 'fecha')
-    search_fields = ('lead__nombre', 'usuario__username', 'descripcion')
+    list_display = ('id', 'lead', 'usuario', 'fecha', 'descripcion', 'tipo_contacto', 'subtipo_contacto')  # ✅ Agregado
+    list_filter = ('usuario', 'fecha', 'tipo_contacto', 'subtipo_contacto')  # ✅ Agregado
+    search_fields = ('lead__nombre', 'usuario__username', 'descripcion', 'tipo_contacto__nombre_tipo', 'subtipo_contacto__descripcion')  # ✅ Agregado
     ordering = ('fecha',)
 
 
