@@ -283,12 +283,14 @@ class ContratoSerializer(serializers.ModelSerializer):
     tipo_documento = serializers.PrimaryKeyRelatedField(queryset=TipoDocumento.objects.all(), required=False, allow_null=True)
     origen = serializers.PrimaryKeyRelatedField(queryset=Origen.objects.all(), required=False, allow_null=True)
 
+    usuario_conversion = serializers.SerializerMethodField()
+
     class Meta:
         model = Contrato
         fields = [
             'id', 'nombre_contrato', 'nombre', 'apellido', 'numero_movil', 'plan_contrato',
             'tipo_documento', 'numero_documento', 'origen', 'coordenadas',
-            'fecha_inicio', 'observaciones', 'lead'
+            'fecha_inicio', 'observaciones', 'lead', 'usuario_conversion'
         ]
 
         extra_kwargs = {
@@ -321,6 +323,24 @@ class ContratoSerializer(serializers.ModelSerializer):
             }
 
         return representation
+
+    def get_usuario_conversion(self, obj):
+        """
+        Obtiene el usuario que convirtió el lead en contrato desde el historial.
+        """
+        historial_conversion = HistorialLead.objects.filter(
+            lead=obj.lead,
+            descripcion__icontains="Lead convertido a contrato"
+        ).order_by('-fecha').first()  # 🔥 Busca el último registro de conversión
+
+        if historial_conversion and historial_conversion.usuario:
+            return {
+                "id": historial_conversion.usuario.id,
+                "username": historial_conversion.usuario.username,
+                "email": historial_conversion.usuario.email,
+                "nombre_completo": f"{historial_conversion.usuario.first_name} {historial_conversion.usuario.last_name}"
+            }
+        return None  # Si no hay historial, devuelve None
 
 
 
