@@ -12,7 +12,8 @@ from .views import (
     ConvertLeadToContractView,
     CreateUserView,
     LeadHistorialView,
-    LeadsYContratosPorOrigenAPIView
+    LeadsYContratosPorOrigenAPIView,
+    ContratoDetailView
 )
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -32,6 +33,8 @@ urlpatterns = [
 
     # Gestión de contratos
     path('contratos/', ContratoListView.as_view(), name='contrato_list'),  # Listar contratos
+
+    path('contratos/<int:pk>/', ContratoDetailView.as_view(), name='contrato_detail'),  # Ver, editar y eliminar contratos
 
     # Gestión de ubicaciones
     path('provincias/<int:departamento_id>/', ProvinciaByDepartamentoView.as_view(), name='provincias_by_departamento'),  # Provincias por departamento

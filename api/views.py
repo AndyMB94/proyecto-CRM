@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from rest_framework import generics
-from rest_framework.generics import ListAPIView
+from rest_framework.generics import RetrieveUpdateDestroyAPIView, ListAPIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import CustomTokenObtainPairSerializer, LeadSerializer, HistorialLeadSerializer, UserSerializer, ContratoSerializer, DistritoSerializer, ProvinciaSerializer, SubtipoContactoSerializer, LeadsYContratosPorOrigenSerializer, GenericSerializer
 from rest_framework.authentication import BasicAuthentication, SessionAuthentication
@@ -383,6 +383,53 @@ class ContratoListView(ListAPIView):
     serializer_class = ContratoSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = None
+
+
+class ContratoDetailView(RetrieveUpdateDestroyAPIView):
+    """
+    Endpoint para ver, actualizar o eliminar un contrato específico.
+    """
+    queryset = Contrato.objects.all()
+    serializer_class = ContratoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, *args, **kwargs):
+        """
+        🔥 Método PUT para actualizar un contrato COMPLETAMENTE, excepto `numero_movil`.
+        """
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=False)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request, *args, **kwargs):
+        """
+        🔥 Método PATCH para actualizar parcialmente un contrato, excepto `numero_movil`.
+        """
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, *args, **kwargs):
+        """
+        🔥 Método DELETE para eliminar un contrato.
+        """
+        instance = self.get_object()
+        instance.delete()
+        return Response({"message": "Contrato eliminado correctamente"}, status=status.HTTP_204_NO_CONTENT)
+
+
+
+
 
 
 class ProvinciaByDepartamentoView(ListAPIView):

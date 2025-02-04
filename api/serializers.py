@@ -276,12 +276,12 @@ class LeadSerializer(serializers.ModelSerializer):
 
 # 🔹 Serializer para Contratos
 class ContratoSerializer(serializers.ModelSerializer):
-    lead = serializers.PrimaryKeyRelatedField(queryset=Lead.objects.all())
+    lead = serializers.PrimaryKeyRelatedField(read_only=True)
 
-    plan_contrato = serializers.SerializerMethodField()  # ✅ Personalizado
-    tipo_documento = serializers.SerializerMethodField()  # ✅ Personalizado
-    origen = serializers.SerializerMethodField()  # ✅ Personalizado
-
+    # ✅ Permitir que estos campos sean editables enviando solo el ID
+    plan_contrato = serializers.PrimaryKeyRelatedField(queryset=TipoPlanContrato.objects.all(), required=False, allow_null=True)
+    tipo_documento = serializers.PrimaryKeyRelatedField(queryset=TipoDocumento.objects.all(), required=False, allow_null=True)
+    origen = serializers.PrimaryKeyRelatedField(queryset=Origen.objects.all(), required=False, allow_null=True)
 
     class Meta:
         model = Contrato
@@ -291,38 +291,36 @@ class ContratoSerializer(serializers.ModelSerializer):
             'fecha_inicio', 'observaciones', 'lead'
         ]
 
-    def get_plan_contrato(self, obj):
-        """
-        Devuelve el plan de contrato con id y descripción.
-        """
-        if obj.plan_contrato:
-            return {
-                "id": obj.plan_contrato.id,
-                "descripcion": obj.plan_contrato.descripcion
-            }
-        return None
+        extra_kwargs = {
+            'numero_movil': {'read_only': True}  # 🔥 No se puede editar
+        }
 
-    def get_tipo_documento(self, obj):
+    def to_representation(self, instance):
         """
-        Devuelve el tipo de documento con id y nombre.
+        🔥 Modifica la respuesta para que devuelva los datos con ID y nombre en JSON.
         """
-        if obj.tipo_documento:
-            return {
-                "id": obj.tipo_documento.id,
-                "nombre_tipo": obj.tipo_documento.nombre_tipo
-            }
-        return None
+        representation = super().to_representation(instance)
 
-    def get_origen(self, obj):
-        """
-        Devuelve el origen con id y nombre.
-        """
-        if obj.origen:
-            return {
-                "id": obj.origen.id,
-                "nombre_origen": obj.origen.nombre_origen
+        # 📌 Personalizamos los campos para que devuelvan ID + Nombre
+        if instance.plan_contrato:
+            representation['plan_contrato'] = {
+                "id": instance.plan_contrato.id,
+                "descripcion": instance.plan_contrato.descripcion
             }
-        return None
+
+        if instance.tipo_documento:
+            representation['tipo_documento'] = {
+                "id": instance.tipo_documento.id,
+                "nombre_tipo": instance.tipo_documento.nombre_tipo
+            }
+
+        if instance.origen:
+            representation['origen'] = {
+                "id": instance.origen.id,
+                "nombre_origen": instance.origen.nombre_origen
+            }
+
+        return representation
 
 
 
