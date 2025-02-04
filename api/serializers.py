@@ -170,16 +170,16 @@ class SectorSerializer(serializers.ModelSerializer):
 class LeadSerializer(serializers.ModelSerializer):
     dueno = serializers.SerializerMethodField()  # ✅ Muestra el nombre y apellido del dueño
 
-    # 🔥 Serialización de claves foráneas con el mismo formato que en la base de datos
-    origen = serializers.SerializerMethodField()
-    subtipo_contacto = serializers.SerializerMethodField()
-    resultado_cobertura = serializers.SerializerMethodField()
-    transferencia = serializers.SerializerMethodField()
-    tipo_vivienda = serializers.SerializerMethodField()
-    tipo_base = serializers.SerializerMethodField()
-    plan_contrato = serializers.SerializerMethodField()
-    distrito = serializers.SerializerMethodField()
-    sector = serializers.SerializerMethodField()
+    # ✅ Permitir edición de claves foráneas enviando solo el ID
+    origen = serializers.PrimaryKeyRelatedField(queryset=Origen.objects.all(), required=False, allow_null=True)
+    subtipo_contacto = serializers.PrimaryKeyRelatedField(queryset=SubtipoContacto.objects.all(), required=False, allow_null=True)
+    resultado_cobertura = serializers.PrimaryKeyRelatedField(queryset=ResultadoCobertura.objects.all(), required=False, allow_null=True)
+    transferencia = serializers.PrimaryKeyRelatedField(queryset=Transferencia.objects.all(), required=False, allow_null=True)
+    tipo_vivienda = serializers.PrimaryKeyRelatedField(queryset=TipoVivienda.objects.all(), required=False, allow_null=True)
+    tipo_base = serializers.PrimaryKeyRelatedField(queryset=TipoBase.objects.all(), required=False, allow_null=True)
+    plan_contrato = serializers.PrimaryKeyRelatedField(queryset=TipoPlanContrato.objects.all(), required=False, allow_null=True)
+    distrito = serializers.PrimaryKeyRelatedField(queryset=Distrito.objects.all(), required=False, allow_null=True)
+    sector = serializers.PrimaryKeyRelatedField(queryset=Sector.objects.all(), required=False, allow_null=True)
     tipo_contacto = serializers.SerializerMethodField()
 
     class Meta:
@@ -207,10 +207,8 @@ class LeadSerializer(serializers.ModelSerializer):
         return None  # Si no hay subtipo de contacto, devuelve None
     
     def get_dueno(self, obj):
-        """ 🔥 Devuelve el nombre completo del dueño en vez de solo el ID """
-        if obj.dueno:
-            return f"{obj.dueno.first_name} {obj.dueno.last_name}"  # ✅ Retorna 'Nombre Apellido'
-        return None  # En caso de que no haya dueño
+        """ 🔥 Devuelve el nombre completo del dueño """
+        return f"{obj.dueno.first_name} {obj.dueno.last_name}" if obj.dueno else None
 
     # 🔥 Métodos personalizados para devolver ID y Nombre respetando nombres de tablas
     def get_origen(self, obj):
@@ -241,7 +239,7 @@ class LeadSerializer(serializers.ModelSerializer):
         return {"id": obj.sector.id, "nombre_sector": obj.sector.nombre_sector} if obj.sector else None
 
     def validate_numero_movil(self, value):
-        """ 🔥 Valida que el número tenga al menos 9 dígitos y sea único, EXCLUYENDO el Lead actual. """
+        """ 🔥 Valida que el número tenga al menos 9 dígitos y sea único, excluyendo el Lead actual. """
         if len(value) < 9:
             raise serializers.ValidationError("El número móvil debe tener al menos 9 dígitos.")
 
@@ -262,19 +260,80 @@ class LeadSerializer(serializers.ModelSerializer):
         subtipo_contacto = data.get("subtipo_contacto")
         transferencia = data.get("transferencia")
 
-        if subtipo_contacto:
-            tipo_contacto = subtipo_contacto.tipo_contacto
-            if tipo_contacto.nombre_tipo == "No Contacto" and subtipo_contacto.descripcion == "Transferencia":
-                if not transferencia:
-                    raise ValidationError({
-                        "transferencia": "El campo 'transferencia' es obligatorio cuando el subtipo de contacto es 'Transferencia'."
-                    })
-
-        # 🔥 Si no hay `numero_movil`, el lead NO se crea
-        if "numero_movil" not in data or not data["numero_movil"]:
-            raise serializers.ValidationError({"numero_movil": "Este campo es obligatorio para crear un lead."})
+        if subtipo_contacto and subtipo_contacto.descripcion.lower() == "transferencia" and not transferencia:
+            raise serializers.ValidationError({
+                "transferencia": "El campo 'transferencia' es obligatorio cuando el subtipo de contacto es 'Transferencia'."
+            })
 
         return data
+
+    def to_representation(self, instance):
+        """
+        🔥 Modifica la respuesta para que devuelva los datos con ID y nombre en JSON.
+        """
+        representation = super().to_representation(instance)
+
+        # 📌 Personalizar los campos para devolver ID + Nombre
+        if instance.origen:
+            representation['origen'] = {
+                "id": instance.origen.id,
+                "nombre_origen": instance.origen.nombre_origen
+            }
+
+        if instance.subtipo_contacto:
+            representation['subtipo_contacto'] = {
+                "id": instance.subtipo_contacto.id,
+                "descripcion": instance.subtipo_contacto.descripcion
+            }
+            if instance.subtipo_contacto.tipo_contacto:
+                representation['tipo_contacto'] = {
+                    "id": instance.subtipo_contacto.tipo_contacto.id,
+                    "nombre_tipo": instance.subtipo_contacto.tipo_contacto.nombre_tipo
+                }
+
+        if instance.resultado_cobertura:
+            representation['resultado_cobertura'] = {
+                "id": instance.resultado_cobertura.id,
+                "descripcion": instance.resultado_cobertura.descripcion
+            }
+
+        if instance.transferencia:
+            representation['transferencia'] = {
+                "id": instance.transferencia.id,
+                "descripcion": instance.transferencia.descripcion
+            }
+
+        if instance.tipo_vivienda:
+            representation['tipo_vivienda'] = {
+                "id": instance.tipo_vivienda.id,
+                "descripcion": instance.tipo_vivienda.descripcion
+            }
+
+        if instance.tipo_base:
+            representation['tipo_base'] = {
+                "id": instance.tipo_base.id,
+                "descripcion": instance.tipo_base.descripcion
+            }
+
+        if instance.plan_contrato:
+            representation['plan_contrato'] = {
+                "id": instance.plan_contrato.id,
+                "descripcion": instance.plan_contrato.descripcion
+            }
+
+        if instance.distrito:
+            representation['distrito'] = {
+                "id": instance.distrito.id,
+                "nombre_distrito": instance.distrito.nombre_distrito
+            }
+
+        if instance.sector:
+            representation['sector'] = {
+                "id": instance.sector.id,
+                "nombre_sector": instance.sector.nombre_sector
+            }
+
+        return representation
 
 
 # 🔹 Serializer para Contratos
