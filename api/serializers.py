@@ -241,11 +241,14 @@ class LeadSerializer(serializers.ModelSerializer):
         return {"id": obj.sector.id, "nombre_sector": obj.sector.nombre_sector} if obj.sector else None
 
     def validate_numero_movil(self, value):
-        """ 🔥 Valida que el número tenga al menos 9 dígitos y sea único """
+        """ 🔥 Valida que el número tenga al menos 9 dígitos y sea único, EXCLUYENDO el Lead actual. """
         if len(value) < 9:
             raise serializers.ValidationError("El número móvil debe tener al menos 9 dígitos.")
-        if Lead.objects.filter(numero_movil=value).exists():
+
+        # 🔥 Excluir el mismo Lead al verificar si el número móvil ya existe
+        if Lead.objects.filter(numero_movil=value).exclude(id=self.instance.id if self.instance else None).exists():
             raise serializers.ValidationError("El número móvil ya está registrado.")
+
         return value
 
     def validate_correo(self, value):
