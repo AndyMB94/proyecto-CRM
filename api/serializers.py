@@ -397,9 +397,22 @@ class LeadSerializer(serializers.ModelSerializer):
             }
 
         if instance.distrito:
+            provincia = instance.distrito.provincia
+            departamento = provincia.departamento
+
             representation['distrito'] = {
                 "id": instance.distrito.id,
                 "nombre_distrito": instance.distrito.nombre_distrito
+            }
+
+            representation['provincia'] = {
+                "id": provincia.id,
+                "nombre_provincia": provincia.nombre_provincia
+            }
+
+            representation['departamento'] = {
+                "id": departamento.id,
+                "nombre_departamento": departamento.nombre_departamento
             }
 
         if instance.sector:
