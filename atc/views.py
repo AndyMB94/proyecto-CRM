@@ -6,24 +6,35 @@ from rest_framework import status
 from .serializers import AbonadoSerializer
 from rest_framework.permissions import AllowAny
 
-# Create your views here.
-
 class ConsultaAbonadoView(APIView):
     """
-    Consume la API de Nubyx y devuelve la información del abonado,
-    excluyendo los datos de tickets, utilizando un serializer.
+    Permite consultar la API de Nubyx usando `codigoAbonado` o `numeroDocumento`.
+    Excluye la clave `tickets` en la respuesta.
     """
 
     permission_classes = [AllowAny]
+
     def post(self, request):
         url = "https://api.nubyx.pe/five9/consulta"
+
+        # Obtener los valores de los parámetros enviados en el body
         codigo_abonado = request.data.get("codigoAbonado")
+        numero_documento = request.data.get("numeroDocumento")
 
-        if not codigo_abonado:
-            return Response({"error": "El campo 'codigoAbonado' es obligatorio"}, status=status.HTTP_400_BAD_REQUEST)
+        # Verificar que al menos uno de los dos parámetros sea enviado
+        if not codigo_abonado and not numero_documento:
+            return Response(
+                {"error": "Debes proporcionar 'codigoAbonado' o 'numeroDocumento' para realizar la consulta."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        # Configurar los datos en formato x-www-form-urlencoded
-        payload = {"codigoAbonado": codigo_abonado}
+        # Definir los datos a enviar según el parámetro proporcionado
+        payload = {}
+        if codigo_abonado:
+            payload["codigoAbonado"] = codigo_abonado
+        elif numero_documento:
+            payload["numeroDocumento"] = numero_documento  # Si no hay código abonado, usar documento
+
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
         try:
@@ -48,7 +59,7 @@ class ConsultaAbonadoView(APIView):
                     else:
                         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-                return Response({"error": "No se encontraron datos para el código ingresado"}, status=status.HTTP_404_NOT_FOUND)
+                return Response({"error": "No se encontraron datos para los valores ingresados."}, status=status.HTTP_404_NOT_FOUND)
 
             return Response({"error": f"Error en la API externa: {response.text}"}, status=response.status_code)
 
