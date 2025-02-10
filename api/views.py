@@ -10,6 +10,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.contrib.auth.models import User
+import requests
 from rest_framework import status
 from .models import (
     Lead,
@@ -20,7 +21,6 @@ from .models import (
     TipoContacto,
     SubtipoContacto,
     TipoDocumento,
-    ResultadoCobertura,
     Transferencia,
     TipoVivienda,
     TipoBase,
@@ -148,12 +148,7 @@ class LeadListCreateView(APIView):
         """
         data = request.data.copy()
         usuario_actual = request.user  # Usuario autenticado que crea el lead
-
-        # 🔍 **1️⃣ Verificar si el `numero_movil` ya existe**
-        numero_movil = data.get("numero_movil")
-        if Lead.objects.filter(numero_movil=numero_movil).exists():
-            return Response({"error": "El número móvil ya está registrado. No se ha creado el lead ni el documento."},
-                            status=status.HTTP_400_BAD_REQUEST)
+        
 
         serializer = LeadSerializer(data=data, context={'request': request})
         if serializer.is_valid():
@@ -206,7 +201,7 @@ class LeadListCreateView(APIView):
                                 status=status.HTTP_400_BAD_REQUEST)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+    
 
 
 class LeadDetailView(APIView):
@@ -541,7 +536,6 @@ class GenericListView(ListAPIView):
 
     models_map = {
         "tipo-documento": (TipoDocumento, "nombre_tipo"),
-        "resultado-cobertura": (ResultadoCobertura, "descripcion"),
         "transferencia": (Transferencia, "descripcion"),
         "tipo-vivienda": (TipoVivienda, "descripcion"),
         "tipo-base": (TipoBase, "descripcion"),

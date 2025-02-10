@@ -76,13 +76,6 @@ class SubtipoContacto(models.Model):
         return self.descripcion
 
 
-# Modelo ResultadoCobertura
-class ResultadoCobertura(models.Model):
-    descripcion = models.CharField(max_length=100, unique=True)
-
-    def __str__(self):
-        return self.descripcion
-
 
 # Modelo Transferencia
 class Transferencia(models.Model):
@@ -135,7 +128,7 @@ class Lead(models.Model):
     cargo = models.CharField(max_length=100, blank=True, null=True)
     origen = models.ForeignKey(Origen, on_delete=models.CASCADE, blank=True, null=True)
     subtipo_contacto = models.ForeignKey(SubtipoContacto, on_delete=models.CASCADE, blank=True, null=True)
-    resultado_cobertura = models.ForeignKey(ResultadoCobertura, on_delete=models.PROTECT, blank=True, null=True)
+    resultado_cobertura = models.CharField(max_length=50, blank=True, null=True)  # 🔥 Respuesta de la API
     transferencia = models.ForeignKey(Transferencia, on_delete=models.PROTECT, blank=True, null=True)
     tipo_vivienda = models.ForeignKey(TipoVivienda, on_delete=models.PROTECT, blank=True, null=True)
     tipo_base = models.ForeignKey(TipoBase, on_delete=models.SET_NULL, null=True, blank=True)
@@ -143,7 +136,7 @@ class Lead(models.Model):
     distrito = models.ForeignKey(Distrito, on_delete=models.PROTECT, blank=True, null=True)
     sector = models.ForeignKey(Sector, on_delete=models.SET_NULL, null=True, blank=True)
     direccion = models.CharField(max_length=255, blank=True, null=True)
-    coordenadas = models.CharField(max_length=100, blank=True, null=True)
+    coordenadas = models.CharField(max_length=50, blank=True, null=True)  # 🔥 Almacena "-latitud, -longitud"
     dueno = models.ForeignKey(User, on_delete=models.CASCADE)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     estado = models.BooleanField(default=False)
@@ -156,6 +149,12 @@ class Lead(models.Model):
             raise ValidationError({
                 "transferencia": "El campo 'transferencia' es obligatorio cuando el subtipo de contacto es 'Transferencia'."
             })
+
+        # Validar formato de coordenadas
+        if self.coordenadas:
+            partes = self.coordenadas.split(", ")
+            if len(partes) != 2 or not all(partes):
+                raise ValidationError("El formato de coordenadas debe ser '-latitud, -longitud'.")
 
     def __str__(self):
         return f"{self.nombre} {self.apellido} - Estado: {'Convertido' if self.estado else 'No convertido'}"

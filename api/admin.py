@@ -7,7 +7,6 @@ from .models import (
     Origen,
     TipoContacto,
     SubtipoContacto,
-    ResultadoCobertura,
     Transferencia,
     TipoVivienda,
     TipoBase,
@@ -94,16 +93,6 @@ class SubtipoContactoAdmin(admin.ModelAdmin):
 admin.site.register(SubtipoContacto, SubtipoContactoAdmin)
 
 
-# Configuración para ResultadoCobertura
-class ResultadoCoberturaAdmin(admin.ModelAdmin):
-    list_display = ('id', 'descripcion')
-    search_fields = ('descripcion',)
-    ordering = ('descripcion',)
-
-
-admin.site.register(ResultadoCobertura, ResultadoCoberturaAdmin)
-
-
 # Configuración para Transferencia
 class TransferenciaAdmin(admin.ModelAdmin):
     list_display = ('id', 'descripcion')
@@ -156,9 +145,9 @@ admin.site.register(Sector, SectorAdmin)
 
 # Configuración para Lead
 class LeadAdmin(admin.ModelAdmin):
-    list_display = ('id', 'nombre', 'apellido', 'numero_movil', 'origen', 'dueno', 'estado')
-    list_filter = ('origen', 'dueno')
-    search_fields = ('nombre', 'apellido', 'numero_movil', 'correo', 'direccion')
+    list_display = ('id', 'nombre', 'apellido', 'numero_movil', 'origen', 'dueno', 'estado', 'coordenadas', 'resultado_cobertura')  # 🔥 Agregado resultado_cobertura
+    list_filter = ('origen', 'dueno', 'resultado_cobertura')  # 🔥 Agregado filtro por cobertura
+    search_fields = ('nombre', 'apellido', 'numero_movil', 'correo', 'direccion', 'resultado_cobertura')  # 🔥 Búsqueda por cobertura
     ordering = ('nombre',)
 
 

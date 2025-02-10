@@ -2,15 +2,17 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.exceptions import AuthenticationFailed, ValidationError
 from django.contrib.auth import authenticate
 from rest_framework import serializers
+import requests
 import re
 from .models import (
     Profile, Departamento, Provincia, Distrito, Origen, TipoContacto,
-    SubtipoContacto, ResultadoCobertura, Transferencia, TipoVivienda,
+    SubtipoContacto, Transferencia, TipoVivienda,
     TipoBase, TipoPlanContrato, Sector, Lead, Documento, TipoDocumento,
     Contrato, HistorialLead
 )
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import check_password
+from django.conf import settings
 
 
 # 🔹 Serializer para obtener el Token JWT con información adicional
@@ -179,11 +181,6 @@ class SubtipoContactoSerializer(serializers.ModelSerializer):
 
 
 # 🔹 Serializers para Tipos de Clasificación
-class ResultadoCoberturaSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ResultadoCobertura
-        fields = ['id', 'descripcion']
-
 
 class TransferenciaSerializer(serializers.ModelSerializer):
     class Meta:
@@ -222,7 +219,8 @@ class LeadSerializer(serializers.ModelSerializer):
     # ✅ Permitir edición de claves foráneas enviando solo el ID
     origen = serializers.PrimaryKeyRelatedField(queryset=Origen.objects.all(), required=False, allow_null=True)
     subtipo_contacto = serializers.PrimaryKeyRelatedField(queryset=SubtipoContacto.objects.all(), required=False, allow_null=True)
-    resultado_cobertura = serializers.PrimaryKeyRelatedField(queryset=ResultadoCobertura.objects.all(), required=False, allow_null=True)
+    coordenadas = serializers.CharField(read_only=True)  
+    resultado_cobertura = serializers.CharField(read_only=True)
     transferencia = serializers.PrimaryKeyRelatedField(queryset=Transferencia.objects.all(), required=False, allow_null=True)
     tipo_vivienda = serializers.PrimaryKeyRelatedField(queryset=TipoVivienda.objects.all(), required=False, allow_null=True)
     tipo_base = serializers.PrimaryKeyRelatedField(queryset=TipoBase.objects.all(), required=False, allow_null=True)
@@ -232,20 +230,53 @@ class LeadSerializer(serializers.ModelSerializer):
     tipo_contacto = serializers.SerializerMethodField()
     tipo_documento = serializers.SerializerMethodField()  # ✅ Muestra el tipo de documento del lead
     numero_documento = serializers.SerializerMethodField()  # ✅ Muestra el número de documento
+    latitud = serializers.FloatField(write_only=True, required=False)  # 🔥 Entrada separada
+    longitud = serializers.FloatField(write_only=True, required=False)  # 🔥 Entrada separada
 
     class Meta:
         model = Lead
         fields = [
             'id', 'nombre', 'apellido', 'numero_movil', 'nombre_compania',
-            'correo', 'cargo', 'origen', 'tipo_contacto', 'subtipo_contacto', 'resultado_cobertura',
+            'correo', 'cargo', 'origen', 'tipo_contacto', 'subtipo_contacto',
             'transferencia', 'tipo_vivienda', 'tipo_base', 'plan_contrato',
             'distrito', 'sector', 'direccion', 'coordenadas', 'dueno', 'fecha_creacion', 'estado',
-            'tipo_documento', 'numero_documento'
+            'tipo_documento', 'numero_documento', 'latitud', 'longitud', 'resultado_cobertura'
         ]
         extra_kwargs = {
             'numero_movil': {'required': True},  # ✅ Solo este campo es obligatorio
             'dueno': {'read_only': True},
         }
+
+    def create(self, validated_data):
+        """
+        🔥 Personaliza la creación del Lead eliminando `latitud` y `longitud`
+        """
+        latitud = validated_data.pop('latitud', None)
+        longitud = validated_data.pop('longitud', None)
+
+        # ✅ Si tiene latitud y longitud, generamos coordenadas y consultamos cobertura
+        if latitud is not None and longitud is not None:
+            validated_data['coordenadas'] = f"{latitud}, {longitud}"
+            validated_data['resultado_cobertura'] = self.obtener_resultado_cobertura(latitud, longitud)
+
+        return super().create(validated_data)
+
+    def obtener_resultado_cobertura(self, latitud, longitud):
+        """
+        🔥 Consulta la API externa para obtener el resultado de cobertura.
+        """
+        url = "https://nubyx.purpura.pe/admin/cobertura"
+        payload = {"latitud": str(latitud), "longitud": str(longitud)}
+        headers = {"Content-Type": "application/x-www-form-urlencoded"}
+
+        try:
+            response = requests.post(url, data=payload, headers=headers)
+            if response.status_code == 200:
+                return response.json().get("mensaje", "SIN_COBERTURA")
+        except requests.exceptions.RequestException:
+            return "ERROR_API"
+
+        return "SIN_COBERTURA"
 
     def get_tipo_contacto(self, obj):
         """
@@ -310,8 +341,8 @@ class LeadSerializer(serializers.ModelSerializer):
         if len(value) < 9:
             raise serializers.ValidationError("El número móvil debe tener al menos 9 dígitos.")
 
-        # 🔥 Excluir el mismo Lead al verificar si el número móvil ya existe
-        if Lead.objects.filter(numero_movil=value).exclude(id=self.instance.id if self.instance else None).exists():
+        # 🔍 Ahora se verifica aquí dentro del serializador
+        if Lead.objects.filter(numero_movil=value).exists():
             raise serializers.ValidationError("El número móvil ya está registrado.")
 
         return value
@@ -342,11 +373,17 @@ class LeadSerializer(serializers.ModelSerializer):
 
         return data
 
+
     def to_representation(self, instance):
         """
         🔥 Modifica la respuesta para que devuelva los datos con ID y nombre en JSON.
         """
         representation = super().to_representation(instance)
+
+        # ✅ Ajuste para devolver las coordenadas exactamente como se ingresaron
+        if instance.coordenadas:
+            lat, lon = instance.coordenadas.split(", ")
+            representation['coordenadas'] = f"{float(lat):.6f}, {float(lon):.6f}".rstrip("0").rstrip(".")  # Formatear sin ceros innecesarios
 
         # 📌 Personalizar los campos para devolver ID + Nombre
         if instance.origen:
@@ -367,10 +404,7 @@ class LeadSerializer(serializers.ModelSerializer):
                 }
 
         if instance.resultado_cobertura:
-            representation['resultado_cobertura'] = {
-                "id": instance.resultado_cobertura.id,
-                "descripcion": instance.resultado_cobertura.descripcion
-            }
+            representation['resultado_cobertura'] = instance.resultado_cobertura  # ✅ Devolver directamente el string
 
         if instance.transferencia:
             representation['transferencia'] = {
