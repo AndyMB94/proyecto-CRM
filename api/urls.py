@@ -15,7 +15,8 @@ from .views import (
     LeadsYContratosPorOrigenAPIView,
     ContratoDetailView,
     UserDetailView,
-    ChangePasswordView
+    ChangePasswordView,
+    ConsultaCoberturaView
 )
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -38,6 +39,8 @@ urlpatterns = [
     path('leads/<int:pk>/', LeadDetailView.as_view(), name='lead_detail'),  # Detalle, actualizar y eliminar lead
     path('leads/search/<str:numero_movil>/', LeadSearchByNumberView.as_view(), name='lead_search_by_number'),  # Buscar leads por número de móvil
     path('leads/<int:lead_id>/convert/', ConvertLeadToContractView.as_view(), name='convert_lead_to_contract'),  # Convertir lead a contrato
+
+    path('consulta-cobertura/', ConsultaCoberturaView.as_view(), name='consulta_cobertura'),
 
     # Gestión de contratos
     path('contratos/', ContratoListView.as_view(), name='contrato_list'),  # Listar contratos

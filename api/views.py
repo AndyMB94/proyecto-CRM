@@ -2,7 +2,7 @@ from rest_framework import serializers
 from rest_framework import generics
 from rest_framework.generics import RetrieveUpdateDestroyAPIView, ListAPIView
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .serializers import CustomTokenObtainPairSerializer, LeadSerializer, HistorialLeadSerializer, UserSerializer, ContratoSerializer, DistritoSerializer, ProvinciaSerializer, SubtipoContactoSerializer, LeadsYContratosPorOrigenSerializer, GenericSerializer, ChangePasswordSerializer
+from .serializers import CustomTokenObtainPairSerializer, LeadSerializer, HistorialLeadSerializer, UserSerializer, ContratoSerializer, DistritoSerializer, ProvinciaSerializer, SubtipoContactoSerializer, LeadsYContratosPorOrigenSerializer, GenericSerializer, ChangePasswordSerializer, ConsultaCoberturaSerializer
 from rest_framework.authentication import BasicAuthentication, SessionAuthentication
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.shortcuts import get_object_or_404
@@ -659,3 +659,45 @@ class LeadsYContratosPorOrigenAPIView(generics.GenericAPIView):
         }
 
         return Response(response)
+
+
+
+class ConsultaCoberturaView(APIView):
+    """
+    Endpoint para consultar la cobertura con coordenadas en formato string.
+    """
+    permission_classes = [AllowAny]  # 🔥 Permite acceso sin autenticación (cámbialo si es necesario)
+
+    def post(self, request):
+        """
+        Recibe coordenadas en formato "-latitud, -longitud" y consulta la API externa de cobertura.
+        """
+        serializer = ConsultaCoberturaSerializer(data=request.data)
+
+        if serializer.is_valid():
+            coordenadas = serializer.validated_data["coordenadas"]
+            latitud = coordenadas["latitud"]
+            longitud = coordenadas["longitud"]
+
+            url = "https://nubyx.purpura.pe/admin/cobertura"
+            payload = {"latitud": latitud, "longitud": longitud}
+            headers = {"Content-Type": "application/x-www-form-urlencoded"}
+
+            try:
+                response = requests.post(url, data=payload, headers=headers)
+                print(f"🔍 Respuesta de la API externa: {response.status_code} - {response.text}")  # 👀 LOG en la terminal
+
+                if response.status_code == 200:
+                    return Response({"resultado_cobertura": response.json().get("mensaje", "SIN_COBERTURA")})
+
+                return Response(
+                    {"error": "Error en API externa", "detalle": response.text},
+                    status=response.status_code
+                )
+
+            except requests.exceptions.RequestException as e:
+                print(f"⚠️ Error en la solicitud a la API externa: {e}")  # 👀 LOG en la terminal
+                return Response({"resultado_cobertura": "ERROR_API"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+

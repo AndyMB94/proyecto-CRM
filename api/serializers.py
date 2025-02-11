@@ -21,6 +21,9 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def get_token(cls, user):
         token = super().get_token(user)
 
+        # Agrega el username al token JWT
+        token['username'] = user.username  
+
         # Agrega campos adicionales al token
         token['email'] = user.email
         token['is_staff'] = user.is_staff
@@ -257,26 +260,9 @@ class LeadSerializer(serializers.ModelSerializer):
         # ✅ Si tiene latitud y longitud, generamos coordenadas y consultamos cobertura
         if latitud is not None and longitud is not None:
             validated_data['coordenadas'] = f"{latitud}, {longitud}"
-            validated_data['resultado_cobertura'] = self.obtener_resultado_cobertura(latitud, longitud)
 
         return super().create(validated_data)
 
-    def obtener_resultado_cobertura(self, latitud, longitud):
-        """
-        🔥 Consulta la API externa para obtener el resultado de cobertura.
-        """
-        url = "https://nubyx.purpura.pe/admin/cobertura"
-        payload = {"latitud": str(latitud), "longitud": str(longitud)}
-        headers = {"Content-Type": "application/x-www-form-urlencoded"}
-
-        try:
-            response = requests.post(url, data=payload, headers=headers)
-            if response.status_code == 200:
-                return response.json().get("mensaje", "SIN_COBERTURA")
-        except requests.exceptions.RequestException:
-            return "ERROR_API"
-
-        return "SIN_COBERTURA"
 
     def get_tipo_contacto(self, obj):
         """
@@ -584,3 +570,17 @@ class GenericSerializer(serializers.ModelSerializer):
 
     def get_nombre(self, obj):
         return str(obj)  # Usa la representación en string del objeto
+    
+    
+class ConsultaCoberturaSerializer(serializers.Serializer):
+    coordenadas = serializers.CharField()
+
+    def validate_coordenadas(self, value):
+        """
+        🔥 Valida y separa latitud y longitud de la cadena de coordenadas.
+        """
+        try:
+            latitud, longitud = map(str.strip, value.split(","))
+            return {"latitud": latitud, "longitud": longitud}
+        except ValueError:
+            raise serializers.ValidationError("Formato incorrecto. Debe ser '-latitud, -longitud'.")
