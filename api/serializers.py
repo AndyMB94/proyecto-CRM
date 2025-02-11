@@ -223,7 +223,7 @@ class LeadSerializer(serializers.ModelSerializer):
     origen = serializers.PrimaryKeyRelatedField(queryset=Origen.objects.all(), required=False, allow_null=True)
     subtipo_contacto = serializers.PrimaryKeyRelatedField(queryset=SubtipoContacto.objects.all(), required=False, allow_null=True)
     coordenadas = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    resultado_cobertura = serializers.CharField(required=False, allow_null=True)
+    resultado_cobertura = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     transferencia = serializers.PrimaryKeyRelatedField(queryset=Transferencia.objects.all(), required=False, allow_null=True)
     tipo_vivienda = serializers.PrimaryKeyRelatedField(queryset=TipoVivienda.objects.all(), required=False, allow_null=True)
     tipo_base = serializers.PrimaryKeyRelatedField(queryset=TipoBase.objects.all(), required=False, allow_null=True)
