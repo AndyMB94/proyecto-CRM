@@ -327,8 +327,11 @@ class LeadSerializer(serializers.ModelSerializer):
         if len(value) < 9:
             raise serializers.ValidationError("El número móvil debe tener al menos 9 dígitos.")
 
-        # 🔍 Ahora se verifica aquí dentro del serializador
-        if Lead.objects.filter(numero_movil=value).exists():
+        # ✅ EXCLUIR EL LEAD ACTUAL EN VALIDACIÓN
+        request = self.context.get("request")
+        lead_id = self.instance.id if self.instance else None  # Obtener ID si es actualización
+
+        if Lead.objects.filter(numero_movil=value).exclude(id=lead_id).exists():
             raise serializers.ValidationError("El número móvil ya está registrado.")
 
         return value

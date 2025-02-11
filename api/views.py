@@ -230,8 +230,8 @@ class LeadDetailView(APIView):
         usuario_actual = request.user
         data = request.data.copy()
 
-        tipo_contacto_anterior = lead.subtipo_contacto.tipo_contacto if lead.subtipo_contacto else None
         subtipo_contacto_anterior = lead.subtipo_contacto
+        tipo_contacto_anterior = subtipo_contacto_anterior.tipo_contacto if subtipo_contacto_anterior else None
 
         serializer = LeadSerializer(lead, data=data)
         if serializer.is_valid():
@@ -239,20 +239,25 @@ class LeadDetailView(APIView):
                 lead_actualizado = serializer.save()
 
                 cambios = []
-                if subtipo_contacto_anterior != lead_actualizado.subtipo_contacto:
-                    cambios.append(f"Subtipo de contacto cambiado de {subtipo_contacto_anterior} a {lead_actualizado.subtipo_contacto}")
 
-                if tipo_contacto_anterior != (lead_actualizado.subtipo_contacto.tipo_contacto if lead_actualizado.subtipo_contacto else None):
-                    cambios.append(f"Tipo de contacto cambiado de {tipo_contacto_anterior} a {lead_actualizado.subtipo_contacto.tipo_contacto}.")
+                subtipo_contacto_actual = lead_actualizado.subtipo_contacto
+                tipo_contacto_actual = subtipo_contacto_actual.tipo_contacto if subtipo_contacto_actual else None
+
+                if subtipo_contacto_anterior != subtipo_contacto_actual:
+                    cambios.append(f"Subtipo de contacto cambiado de {subtipo_contacto_anterior} a {subtipo_contacto_actual}")
+
+                if tipo_contacto_anterior != tipo_contacto_actual:
+                    cambios.append(f"Tipo de contacto cambiado de {tipo_contacto_anterior} a {tipo_contacto_actual}.")
 
                 if cambios:
                     HistorialLead.objects.create(
                         lead=lead,
                         usuario=usuario_actual,
                         descripcion=" y ".join(cambios),
-                        tipo_contacto=lead_actualizado.subtipo_contacto.tipo_contacto if lead_actualizado.subtipo_contacto else None,
-                        subtipo_contacto=lead_actualizado.subtipo_contacto
+                        tipo_contacto=tipo_contacto_actual,
+                        subtipo_contacto=subtipo_contacto_actual
                     )
+
 
                 return Response(serializer.data)
 
@@ -269,8 +274,8 @@ class LeadDetailView(APIView):
         usuario_actual = request.user
         data = request.data.copy()
 
-        tipo_contacto_anterior = lead.subtipo_contacto.tipo_contacto if lead.subtipo_contacto else None
         subtipo_contacto_anterior = lead.subtipo_contacto
+        tipo_contacto_anterior = subtipo_contacto_anterior.tipo_contacto if subtipo_contacto_anterior else None
 
         serializer = LeadSerializer(lead, data=data, partial=True)
         if serializer.is_valid():
@@ -278,19 +283,24 @@ class LeadDetailView(APIView):
                 lead_actualizado = serializer.save()
 
                 cambios = []
-                if subtipo_contacto_anterior != lead_actualizado.subtipo_contacto:
-                    cambios.append(f"Subtipo de contacto cambiado de {subtipo_contacto_anterior} a {lead_actualizado.subtipo_contacto}")
 
-                if tipo_contacto_anterior != (lead_actualizado.subtipo_contacto.tipo_contacto if lead_actualizado.subtipo_contacto else None):
-                    cambios.append(f"Tipo de contacto cambiado de {tipo_contacto_anterior} a {lead_actualizado.subtipo_contacto.tipo_contacto}.")
+                subtipo_contacto_actual = lead_actualizado.subtipo_contacto
+                tipo_contacto_actual = subtipo_contacto_actual.tipo_contacto if subtipo_contacto_actual else None
+
+
+                if subtipo_contacto_anterior != subtipo_contacto_actual:
+                    cambios.append(f"Subtipo de contacto cambiado de {subtipo_contacto_anterior} a {subtipo_contacto_actual}")
+
+                if tipo_contacto_anterior != tipo_contacto_actual:
+                    cambios.append(f"Tipo de contacto cambiado de {tipo_contacto_anterior} a {tipo_contacto_actual}.")
 
                 if cambios:
                     HistorialLead.objects.create(
                         lead=lead,
                         usuario=usuario_actual,
                         descripcion=" y ".join(cambios),
-                        tipo_contacto=lead_actualizado.subtipo_contacto.tipo_contacto if lead_actualizado.subtipo_contacto else None,
-                        subtipo_contacto=lead_actualizado.subtipo_contacto
+                        tipo_contacto=tipo_contacto_actual,
+                        subtipo_contacto=subtipo_contacto_actual
                     )
 
                 return Response(serializer.data)
