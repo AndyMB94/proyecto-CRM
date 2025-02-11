@@ -222,8 +222,8 @@ class LeadSerializer(serializers.ModelSerializer):
     # ✅ Permitir edición de claves foráneas enviando solo el ID
     origen = serializers.PrimaryKeyRelatedField(queryset=Origen.objects.all(), required=False, allow_null=True)
     subtipo_contacto = serializers.PrimaryKeyRelatedField(queryset=SubtipoContacto.objects.all(), required=False, allow_null=True)
-    coordenadas = serializers.CharField(read_only=True)  
-    resultado_cobertura = serializers.CharField(read_only=True)
+    coordenadas = serializers.CharField(required=False, allow_null=True) 
+    resultado_cobertura = serializers.CharField(required=False, allow_null=True)
     transferencia = serializers.PrimaryKeyRelatedField(queryset=Transferencia.objects.all(), required=False, allow_null=True)
     tipo_vivienda = serializers.PrimaryKeyRelatedField(queryset=TipoVivienda.objects.all(), required=False, allow_null=True)
     tipo_base = serializers.PrimaryKeyRelatedField(queryset=TipoBase.objects.all(), required=False, allow_null=True)
@@ -368,8 +368,11 @@ class LeadSerializer(serializers.ModelSerializer):
 
         # ✅ Ajuste para devolver las coordenadas exactamente como se ingresaron
         if instance.coordenadas:
-            lat, lon = instance.coordenadas.split(", ")
-            representation['coordenadas'] = f"{float(lat):.6f}, {float(lon):.6f}".rstrip("0").rstrip(".")  # Formatear sin ceros innecesarios
+            try:
+                lat, lon = instance.coordenadas.split(",")  # Aseguramos que se separa correctamente
+                representation['coordenadas'] = f"{float(lat):.6f}, {float(lon):.6f}".rstrip("0").rstrip(".")
+            except ValueError:
+                representation['coordenadas'] = instance.coordenadas  # Dejarlo como está si no se puede dividir
 
         # 📌 Personalizar los campos para devolver ID + Nombre
         if instance.origen:
