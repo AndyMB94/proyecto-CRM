@@ -352,47 +352,47 @@ class ConvertLeadToContractView(APIView):
 
         documento = Documento.objects.filter(lead=lead).first()
 
-        contrato_data = {
-            "nombre_contrato": f"{lead.nombre} {lead.apellido}",
-            "nombre": lead.nombre,
-            "apellido": lead.apellido,
-            "numero_movil": lead.numero_movil,  # ✅ Se copia el número móvil
-            "plan_contrato": lead.plan_contrato.id if lead.plan_contrato else None,
-            "tipo_documento": documento.tipo_documento.id if documento else None,
-            "numero_documento": documento.numero_documento if documento else None,
-            "origen": lead.origen.id if lead.origen else None,
-            "coordenadas": lead.coordenadas,
-            "lead": lead.id,
-            "fecha_inicio": now().date(),
-            "observaciones": request.data.get('observaciones', 'Contrato generado desde el lead'),
-        }
-
         try:
-            contrato_serializer = ContratoSerializer(data=contrato_data)
-            if contrato_serializer.is_valid():
-                contrato = contrato_serializer.save()
+            # ✅ Crear el contrato directamente en la base de datos
+            contrato = Contrato.objects.create(
+                nombre_contrato=f"{lead.nombre} {lead.apellido}",
+                nombre=lead.nombre,
+                apellido=lead.apellido,
+                numero_movil=lead.numero_movil,
+                plan_contrato=lead.plan_contrato,
+                tipo_documento=documento.tipo_documento if documento else None,
+                numero_documento=documento.numero_documento if documento else None,
+                origen=lead.origen,
+                coordenadas=lead.coordenadas,
+                lead=lead,  # ✅ Se asigna correctamente el lead
+                fecha_inicio=now().date(),
+                observaciones=request.data.get('observaciones', 'Contrato generado desde el lead')
+            )
 
-                lead.estado = 1
-                lead.save()
+            # ✅ Marcar el lead como convertido
+            lead.estado = 1
+            lead.save()
 
-                HistorialLead.objects.create(
-                    lead=lead,
-                    usuario=usuario_actual,
-                    descripcion=f"Lead convertido a contrato por {usuario_actual.first_name} {usuario_actual.last_name}."
-                )
+            # ✅ Registrar historial de conversión
+            HistorialLead.objects.create(
+                lead=lead,
+                usuario=usuario_actual,
+                descripcion=f"Lead convertido a contrato por {usuario_actual.first_name} {usuario_actual.last_name}."
+            )
 
-                return Response({
-                    "message": "Lead convertido a contrato con éxito.",
-                    "contrato": contrato_serializer.data,
-                    "lead": {
-                        "id": lead.id,
-                        "nombre": lead.nombre,
-                        "apellido": lead.apellido,
-                        "estado": lead.estado
-                    }
-                }, status=status.HTTP_201_CREATED)
+            # ✅ Serializar el contrato creado para devolverlo en la respuesta
+            contrato_serializer = ContratoSerializer(contrato)
 
-            return Response(contrato_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                "message": "Lead convertido a contrato con éxito.",
+                "contrato": contrato_serializer.data,
+                "lead": {
+                    "id": lead.id,
+                    "nombre": lead.nombre,
+                    "apellido": lead.apellido,
+                    "estado": lead.estado
+                }
+            }, status=status.HTTP_201_CREATED)
 
         except Exception as e:
             return Response({"error": f"Error al convertir lead a contrato: {str(e)}"},
