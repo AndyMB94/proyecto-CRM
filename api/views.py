@@ -172,7 +172,7 @@ class LeadListCreateView(APIView):
                     HistorialLead.objects.create(
                         lead=lead,
                         usuario=usuario_actual,
-                        descripcion=f"Tipo de contacto: '{tipo_contacto.nombre_tipo}' | Subtipo de contacto: '{subtipo_contacto.descripcion}'.",
+                        descripcion=f"Tipo de contacto: {tipo_contacto.nombre_tipo} y Subtipo de contacto: {subtipo_contacto.descripcion}.",
                         tipo_contacto=tipo_contacto,
                         subtipo_contacto=subtipo_contacto
                     )
@@ -240,16 +240,16 @@ class LeadDetailView(APIView):
 
                 cambios = []
                 if subtipo_contacto_anterior != lead_actualizado.subtipo_contacto:
-                    cambios.append(f"Subtipo de contacto cambiado de '{subtipo_contacto_anterior}' a '{lead_actualizado.subtipo_contacto}'.")
+                    cambios.append(f"Subtipo de contacto cambiado de {subtipo_contacto_anterior} a {lead_actualizado.subtipo_contacto}")
 
                 if tipo_contacto_anterior != (lead_actualizado.subtipo_contacto.tipo_contacto if lead_actualizado.subtipo_contacto else None):
-                    cambios.append(f"Tipo de contacto cambiado de '{tipo_contacto_anterior}' a '{lead_actualizado.subtipo_contacto.tipo_contacto}'.")
+                    cambios.append(f"Tipo de contacto cambiado de {tipo_contacto_anterior} a {lead_actualizado.subtipo_contacto.tipo_contacto}.")
 
                 if cambios:
                     HistorialLead.objects.create(
                         lead=lead,
                         usuario=usuario_actual,
-                        descripcion=" | ".join(cambios),
+                        descripcion=" y ".join(cambios),
                         tipo_contacto=lead_actualizado.subtipo_contacto.tipo_contacto if lead_actualizado.subtipo_contacto else None,
                         subtipo_contacto=lead_actualizado.subtipo_contacto
                     )
@@ -279,16 +279,16 @@ class LeadDetailView(APIView):
 
                 cambios = []
                 if subtipo_contacto_anterior != lead_actualizado.subtipo_contacto:
-                    cambios.append(f"Subtipo de contacto cambiado de '{subtipo_contacto_anterior}' a '{lead_actualizado.subtipo_contacto}'.")
+                    cambios.append(f"Subtipo de contacto cambiado de {subtipo_contacto_anterior} a {lead_actualizado.subtipo_contacto}")
 
                 if tipo_contacto_anterior != (lead_actualizado.subtipo_contacto.tipo_contacto if lead_actualizado.subtipo_contacto else None):
-                    cambios.append(f"Tipo de contacto cambiado de '{tipo_contacto_anterior}' a '{lead_actualizado.subtipo_contacto.tipo_contacto}'.")
+                    cambios.append(f"Tipo de contacto cambiado de {tipo_contacto_anterior} a {lead_actualizado.subtipo_contacto.tipo_contacto}.")
 
                 if cambios:
                     HistorialLead.objects.create(
                         lead=lead,
                         usuario=usuario_actual,
-                        descripcion=" | ".join(cambios),
+                        descripcion=" y ".join(cambios),
                         tipo_contacto=lead_actualizado.subtipo_contacto.tipo_contacto if lead_actualizado.subtipo_contacto else None,
                         subtipo_contacto=lead_actualizado.subtipo_contacto
                     )
