@@ -35,6 +35,7 @@ from django.utils.timezone import now
 from rest_framework.exceptions import ValidationError
 from django.db.models import Count
 from datetime import datetime
+from api.utils import APICliente 
 
 
 
@@ -666,38 +667,26 @@ class ConsultaCoberturaView(APIView):
     """
     Endpoint para consultar la cobertura con coordenadas en formato string.
     """
-    permission_classes = [AllowAny]  # 🔥 Permite acceso sin autenticación (cámbialo si es necesario)
-
+    permission_classes = [AllowAny]  # 🔥 Permite acceso sin autenticación (ajusta si es necesario)
+    
     def post(self, request):
         """
-        Recibe coordenadas en formato "-latitud, -longitud" y consulta la API externa de cobertura.
+        Recibe coordenadas en formato "-latitud, -longitud" y consulta la API externa de cobertura manteniendo cookies.
         """
-        serializer = ConsultaCoberturaSerializer(data=request.data)
+        coordenadas = request.data.get("coordenadas")
 
-        if serializer.is_valid():
-            coordenadas = serializer.validated_data["coordenadas"]
-            latitud = coordenadas["latitud"]
-            longitud = coordenadas["longitud"]
+        if not coordenadas:
+            return Response({"error": "El campo 'coordenadas' es obligatorio."}, status=400)
 
-            url = "https://nubyx.purpura.pe/admin/cobertura"
-            payload = {"latitud": latitud, "longitud": longitud}
-            headers = {"Content-Type": "application/x-www-form-urlencoded"}
+        try:
+            latitud, longitud = map(str.strip, coordenadas.split(","))
 
-            try:
-                response = requests.post(url, data=payload, headers=headers)
-                print(f"🔍 Respuesta de la API externa: {response.status_code} - {response.text}")  # 👀 LOG en la terminal
+            # 🔥 Usar APICliente para hacer la consulta
+            cliente_api = APICliente()
+            resultado_cobertura = cliente_api.consultar_cobertura(latitud, longitud)
 
-                if response.status_code == 200:
-                    return Response({"resultado_cobertura": response.json().get("mensaje", "SIN_COBERTURA")})
+            return Response({"resultado_cobertura": resultado_cobertura})
 
-                return Response(
-                    {"error": "Error en API externa", "detalle": response.text},
-                    status=response.status_code
-                )
-
-            except requests.exceptions.RequestException as e:
-                print(f"⚠️ Error en la solicitud a la API externa: {e}")  # 👀 LOG en la terminal
-                return Response({"resultado_cobertura": "ERROR_API"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except ValueError:
+            return Response({"error": "Formato incorrecto. Debe ser '-latitud, -longitud'."}, status=400)
 
