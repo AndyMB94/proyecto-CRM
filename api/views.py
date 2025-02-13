@@ -2,7 +2,7 @@ from rest_framework import serializers
 from rest_framework import generics
 from rest_framework.generics import RetrieveUpdateDestroyAPIView, ListAPIView
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .serializers import CustomTokenObtainPairSerializer, LeadSerializer, HistorialLeadSerializer, UserSerializer, ContratoSerializer, DistritoSerializer, ProvinciaSerializer, SubtipoContactoSerializer, LeadsYContratosPorOrigenSerializer, GenericSerializer, ChangePasswordSerializer, ConsultaCoberturaSerializer
+from .serializers import CustomTokenObtainPairSerializer, LeadSerializer, HistorialLeadSerializer, UserSerializer, ContratoSerializer, DistritoSerializer, ProvinciaSerializer, SubtipoContactoSerializer, LeadsYContratosPorOrigenSerializer, GenericSerializer, ChangePasswordSerializer, ConsultaCoberturaSerializer, OrigenSerializer, TipoBaseSerializer, TipoContactoSerializer, TipoViviendaSerializer, TransferenciaSerializer, TipoPlanContratoSerializer, SectorSerializer, DepartamentoSerializer, TipoDocumentoSerializer
 from rest_framework.authentication import BasicAuthentication, SessionAuthentication
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.shortcuts import get_object_or_404
@@ -700,3 +700,31 @@ class ConsultaCoberturaView(APIView):
         except ValueError:
             return Response({"error": "Formato incorrecto. Debe ser '-latitud, -longitud'."}, status=400)
 
+class LeadMetadataView(APIView):
+    """
+    Endpoint que devuelve los datos necesarios para llenar el formulario de creación de leads.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """
+        Devuelve listas de valores para los select del formulario de leads en una sola solicitud.
+        """
+        try:
+            data = {
+                "origenes": OrigenSerializer(Origen.objects.all(), many=True).data,
+                "tipo_contactos": TipoContactoSerializer(TipoContacto.objects.all(), many=True).data,
+                "subtipo_contactos": SubtipoContactoSerializer(SubtipoContacto.objects.all(), many=True).data,
+                "transferencias": TransferenciaSerializer(Transferencia.objects.all(), many=True).data,
+                "tipo_viviendas": TipoViviendaSerializer(TipoVivienda.objects.all(), many=True).data,
+                "tipo_bases": TipoBaseSerializer(TipoBase.objects.all(), many=True).data,
+                "tipo_planes": TipoPlanContratoSerializer(TipoPlanContrato.objects.all(), many=True).data,
+                "sectores": SectorSerializer(Sector.objects.all(), many=True).data,
+                "tipo_documentos": TipoDocumentoSerializer(TipoDocumento.objects.all(), many=True).data,
+                "departamentos": DepartamentoSerializer(Departamento.objects.all(), many=True).data,
+                "provincias": ProvinciaSerializer(Provincia.objects.all(), many=True).data,
+                "distritos": DistritoSerializer(Distrito.objects.all(), many=True).data,
+            }
+            return Response(data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": f"Error al obtener metadata: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

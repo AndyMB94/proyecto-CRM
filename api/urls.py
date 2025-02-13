@@ -16,7 +16,8 @@ from .views import (
     ContratoDetailView,
     UserDetailView,
     ChangePasswordView,
-    ConsultaCoberturaView
+    ConsultaCoberturaView,
+    LeadMetadataView
 )
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -60,4 +61,5 @@ urlpatterns = [
 
     # Listado genérico de tablas auxiliares
     path('<str:model_name>/', GenericListView.as_view(), name='generic_list'),  # Listar elementos de modelos auxiliares
+    path('leads/metadata/', LeadMetadataView.as_view(), name='lead_metadata'),
 ]
