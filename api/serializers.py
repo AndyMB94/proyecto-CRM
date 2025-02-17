@@ -150,17 +150,19 @@ class DepartamentoSerializer(serializers.ModelSerializer):
 
 
 class ProvinciaSerializer(serializers.ModelSerializer):
+    departamento_id = serializers.IntegerField(source='departamento.id', read_only=True) 
 
     class Meta:
         model = Provincia
-        fields = ['id', 'nombre_provincia']
+        fields = ['id', 'nombre_provincia','departamento_id']
 
 
 class DistritoSerializer(serializers.ModelSerializer):
+    provincia_id = serializers.IntegerField(source='provincia.id', read_only=True)
 
     class Meta:
         model = Distrito
-        fields = ['id', 'nombre_distrito']
+        fields = ['id', 'nombre_distrito','provincia_id']
 
 
 # 🔹 Serializers para Origen y Tipos de Contacto
@@ -177,10 +179,11 @@ class TipoContactoSerializer(serializers.ModelSerializer):
 
 
 class SubtipoContactoSerializer(serializers.ModelSerializer):
+    tipo_contacto_id = serializers.IntegerField(source='tipo_contacto.id', read_only=True)
 
     class Meta:
         model = SubtipoContacto
-        fields = ['id', 'descripcion']
+        fields = ['id', 'descripcion','tipo_contacto_id']
 
 
 # 🔹 Serializers para Tipos de Clasificación
