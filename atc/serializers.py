@@ -10,7 +10,7 @@ class AbonadoSerializer(serializers.Serializer):
     celularTres = serializers.CharField(allow_blank=True, required=False)
     documentoIdentidad = serializers.CharField()
     nombres = serializers.CharField()
-    apellidos = serializers.CharField()
+    apellidos = serializers.CharField(allow_blank=True, required=False)
     departamento = serializers.CharField(allow_blank=True, required=False)
     provincia = serializers.CharField(allow_blank=True, required=False)
     distrito = serializers.CharField(allow_blank=True, required=False)

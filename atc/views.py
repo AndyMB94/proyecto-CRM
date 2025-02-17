@@ -46,13 +46,13 @@ class ConsultaAbonadoView(APIView):
                 data = response.json()
 
                 if isinstance(data, list) and len(data) > 0:
-                    abonado_data = data[0]  # Extraemos el primer elemento de la lista
                     
-                    # Excluir el campo 'tickets'
-                    abonado_data.pop("tickets", None)
+                    # Excluir 'tickets' de cada servicio en la lista
+                    for item in data:
+                        item.pop("tickets", None)
 
                     # Validar los datos con el serializer
-                    serializer = AbonadoSerializer(data=abonado_data)
+                    serializer = AbonadoSerializer(data=data, many=True)  # 🔥 Ahora `many=True`
 
                     if serializer.is_valid():
                         return Response(serializer.data, status=status.HTTP_200_OK)
