@@ -2,7 +2,7 @@ from rest_framework import serializers
 from rest_framework import generics
 from rest_framework.generics import RetrieveUpdateDestroyAPIView, ListAPIView
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .serializers import CustomTokenObtainPairSerializer, LeadSerializer, HistorialLeadSerializer, UserSerializer, ContratoSerializer, DistritoSerializer, ProvinciaSerializer, SubtipoContactoSerializer, LeadsYContratosPorOrigenSerializer, GenericSerializer, ChangePasswordSerializer, ConsultaCoberturaSerializer, OrigenSerializer, TipoBaseSerializer, TipoContactoSerializer, TipoViviendaSerializer, TransferenciaSerializer, TipoPlanContratoSerializer, SectorSerializer, DepartamentoSerializer, TipoDocumentoSerializer, ExportLeadSerializer
+from .serializers import CustomTokenObtainPairSerializer, LeadSerializer, HistorialLeadSerializer, UserSerializer, ContratoSerializer, DistritoSerializer, ProvinciaSerializer, SubtipoContactoSerializer, LeadsYContratosPorOrigenSerializer, GenericSerializer, ChangePasswordSerializer, ConsultaCoberturaSerializer, OrigenSerializer, TipoBaseSerializer, TipoContactoSerializer, TipoViviendaSerializer, TransferenciaSerializer, TipoPlanContratoSerializer, SectorSerializer, DepartamentoSerializer, TipoDocumentoSerializer, ExportLeadSerializer, ExportHistorialLeadSerializer
 from rest_framework.authentication import BasicAuthentication, SessionAuthentication
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.shortcuts import get_object_or_404
@@ -797,3 +797,37 @@ class ExportLeadsView(APIView):
 
         return response
 
+class ExportHistorialLeadsAllView(APIView):
+    """
+    Exporta el historial de todos los leads en CSV, Excel o JSON según la solicitud del usuario.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, file_format):
+        historial = HistorialLead.objects.select_related('lead').all()
+        serializer = ExportHistorialLeadSerializer(historial, many=True)
+        df = pd.DataFrame(serializer.data)
+
+        if df.empty:
+            return JsonResponse({"error": "No hay datos de historial para exportar"}, status=400)
+
+        timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        filename = f"historial_leads_{timestamp}"
+
+        if file_format == 'excel':
+            response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            response['Content-Disposition'] = f'attachment; filename={filename}.xlsx'
+            df.to_excel(response, index=False, engine='openpyxl')
+
+        elif file_format == 'csv':
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename={filename}.csv'
+            df.to_csv(response, index=False, encoding='utf-8')
+
+        elif file_format == 'json':
+            response = JsonResponse(df.to_dict(orient='records'), safe=False)
+
+        else:
+            return JsonResponse({"error": "Formato no soportado"}, status=400)
+
+        return response

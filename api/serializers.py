@@ -666,3 +666,23 @@ class ExportLeadSerializer(serializers.ModelSerializer):
         """ 🔥 Obtiene el número de documento del lead """
         documento = Documento.objects.filter(lead=obj).first()
         return documento.numero_documento if documento else None
+
+class ExportHistorialLeadSerializer(serializers.ModelSerializer):
+    numero_movil = serializers.CharField(source="lead.numero_movil", read_only=True)
+    cliente = serializers.SerializerMethodField()
+    usuario = serializers.SerializerMethodField()
+    tipo_contacto = serializers.CharField(source="tipo_contacto.nombre_tipo", allow_null=True)
+    subtipo_contacto = serializers.CharField(source="subtipo_contacto.descripcion", allow_null=True)
+
+    class Meta:
+        model = HistorialLead
+        fields = ["numero_movil", "cliente", "usuario", "descripcion", "fecha", "tipo_contacto", "subtipo_contacto"]
+
+    def get_cliente(self, obj):
+        """ 🔥 Concatena el nombre y apellido del lead """
+        if obj.lead:
+            return f"{obj.lead.nombre} {obj.lead.apellido}".strip()
+        return "Desconocido"
+
+    def get_usuario(self, obj):
+        return f"{obj.usuario.first_name} {obj.usuario.last_name}" if obj.usuario else "Desconocido"

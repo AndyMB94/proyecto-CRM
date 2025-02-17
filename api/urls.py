@@ -18,7 +18,8 @@ from .views import (
     ChangePasswordView,
     ConsultaCoberturaView,
     LeadMetadataView,
-    ExportLeadsView
+    ExportLeadsView,
+    ExportHistorialLeadsAllView
 )
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -65,4 +66,7 @@ urlpatterns = [
     path('leads/metadata/', LeadMetadataView.as_view(), name='lead_metadata'),
 
     path('export-leads/<str:file_format>/', ExportLeadsView.as_view(), name='export_leads'),
+
+    path('export-historial-leads/<str:file_format>/', ExportHistorialLeadsAllView.as_view(), name='export_historial_leads'),
+
 ]
