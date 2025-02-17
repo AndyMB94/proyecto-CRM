@@ -38,6 +38,7 @@ from datetime import datetime
 from api.utils import APICliente 
 import pandas as pd
 from django.http import HttpResponse, JsonResponse
+from .permissions import IsAdmin
 
 
 
