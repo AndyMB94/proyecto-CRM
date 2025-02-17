@@ -590,3 +590,76 @@ class ConsultaCoberturaSerializer(serializers.Serializer):
             return {"latitud": latitud, "longitud": longitud}
         except ValueError:
             raise serializers.ValidationError("Formato incorrecto. Debe ser '-latitud, -longitud'.")
+
+class ExportLeadSerializer(serializers.ModelSerializer):
+    origen = OrigenSerializer()
+    tipo_contacto = serializers.SerializerMethodField()
+    subtipo_contacto = SubtipoContactoSerializer()
+    transferencia = TransferenciaSerializer()
+    tipo_vivienda = TipoViviendaSerializer()
+    tipo_base = TipoBaseSerializer()
+    plan_contrato = TipoPlanContratoSerializer()
+    distrito = DistritoSerializer()
+    sector = SectorSerializer()
+    tipo_documento = serializers.SerializerMethodField()  # 🔥 Obtener tipo de documento
+    numero_documento = serializers.SerializerMethodField()  # 🔥 Obtener número de documento
+    provincia = serializers.SerializerMethodField()
+    departamento = serializers.SerializerMethodField()
+    dueno = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Lead
+        fields = [
+            'id', 'nombre', 'apellido', 'numero_movil', 'nombre_compania',
+            'correo', 'cargo', 'origen', 'tipo_contacto', 'subtipo_contacto',
+            'transferencia', 'tipo_vivienda', 'tipo_base', 'plan_contrato',
+            'distrito', 'provincia', 'departamento', 'sector', 'direccion',
+            'coordenadas', 'dueno', 'fecha_creacion', 'estado', 'tipo_documento',
+            'numero_documento', 'resultado_cobertura'
+        ]
+
+    def get_tipo_contacto(self, obj):
+        """ Retorna el tipo de contacto a partir del subtipo """
+        if obj.subtipo_contacto and obj.subtipo_contacto.tipo_contacto:
+            return {
+                "id": obj.subtipo_contacto.tipo_contacto.id,
+                "nombre_tipo": obj.subtipo_contacto.tipo_contacto.nombre_tipo
+            }
+        return None
+    
+    def get_dueno(self, obj):
+        """ Retorna el nombre completo del dueño """
+        return f"{obj.dueno.first_name} {obj.dueno.last_name}" if obj.dueno else None
+
+    def get_provincia(self, obj):
+        """ Retorna la provincia del lead """
+        if obj.distrito and obj.distrito.provincia:
+            return {
+                "id": obj.distrito.provincia.id,
+                "nombre_provincia": obj.distrito.provincia.nombre_provincia
+            }
+        return None
+
+    def get_departamento(self, obj):
+        """ Retorna el departamento del lead """
+        if obj.distrito and obj.distrito.provincia and obj.distrito.provincia.departamento:
+            return {
+                "id": obj.distrito.provincia.departamento.id,
+                "nombre_departamento": obj.distrito.provincia.departamento.nombre_departamento
+            }
+        return None
+    
+    def get_tipo_documento(self, obj):
+        """ 🔥 Obtiene el tipo de documento del lead """
+        documento = Documento.objects.filter(lead=obj).first()
+        if documento and documento.tipo_documento:
+            return {
+                "id": documento.tipo_documento.id,
+                "nombre_tipo": documento.tipo_documento.nombre_tipo
+            }
+        return None  # Si no hay documento, devuelve None
+    
+    def get_numero_documento(self, obj):
+        """ 🔥 Obtiene el número de documento del lead """
+        documento = Documento.objects.filter(lead=obj).first()
+        return documento.numero_documento if documento else None

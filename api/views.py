@@ -2,7 +2,7 @@ from rest_framework import serializers
 from rest_framework import generics
 from rest_framework.generics import RetrieveUpdateDestroyAPIView, ListAPIView
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .serializers import CustomTokenObtainPairSerializer, LeadSerializer, HistorialLeadSerializer, UserSerializer, ContratoSerializer, DistritoSerializer, ProvinciaSerializer, SubtipoContactoSerializer, LeadsYContratosPorOrigenSerializer, GenericSerializer, ChangePasswordSerializer, ConsultaCoberturaSerializer, OrigenSerializer, TipoBaseSerializer, TipoContactoSerializer, TipoViviendaSerializer, TransferenciaSerializer, TipoPlanContratoSerializer, SectorSerializer, DepartamentoSerializer, TipoDocumentoSerializer
+from .serializers import CustomTokenObtainPairSerializer, LeadSerializer, HistorialLeadSerializer, UserSerializer, ContratoSerializer, DistritoSerializer, ProvinciaSerializer, SubtipoContactoSerializer, LeadsYContratosPorOrigenSerializer, GenericSerializer, ChangePasswordSerializer, ConsultaCoberturaSerializer, OrigenSerializer, TipoBaseSerializer, TipoContactoSerializer, TipoViviendaSerializer, TransferenciaSerializer, TipoPlanContratoSerializer, SectorSerializer, DepartamentoSerializer, TipoDocumentoSerializer, ExportLeadSerializer
 from rest_framework.authentication import BasicAuthentication, SessionAuthentication
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.shortcuts import get_object_or_404
@@ -36,6 +36,8 @@ from rest_framework.exceptions import ValidationError
 from django.db.models import Count
 from datetime import datetime
 from api.utils import APICliente 
+import pandas as pd
+from django.http import HttpResponse, JsonResponse
 
 
 
@@ -728,3 +730,70 @@ class LeadMetadataView(APIView):
             return Response(data, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": f"Error al obtener metadata: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+class ExportLeadsView(APIView):
+    """
+    Exporta los leads en CSV, Excel o JSON según la solicitud del usuario.
+    """
+    permission_classes = [IsAuthenticated]  # Requiere autenticación
+
+    def get(self, request, file_format):
+        """
+        Permite exportar los leads en diferentes formatos: CSV, Excel o JSON.
+        """
+        # Obtener los leads de la base de datos
+        leads = Lead.objects.all()
+
+        # 🔹 Serializar los datos para obtener nombres completos en lugar de IDs
+        serializer = ExportLeadSerializer(leads, many=True)
+        leads_data = serializer.data
+
+        # 🔥 Transformar los datos para extraer solo los nombres en los campos relacionados
+        for lead in leads_data:
+            lead["origen"] = lead["origen"]["nombre_origen"] if lead["origen"] else None
+            lead["tipo_contacto"] = lead["tipo_contacto"]["nombre_tipo"] if lead["tipo_contacto"] else None
+            lead["subtipo_contacto"] = lead["subtipo_contacto"]["descripcion"] if lead["subtipo_contacto"] else None
+            lead["transferencia"] = lead["transferencia"]["descripcion"] if lead["transferencia"] else None
+            lead["tipo_vivienda"] = lead["tipo_vivienda"]["descripcion"] if lead["tipo_vivienda"] else None
+            lead["tipo_base"] = lead["tipo_base"]["descripcion"] if lead["tipo_base"] else None
+            lead["plan_contrato"] = lead["plan_contrato"]["descripcion"] if lead["plan_contrato"] else None
+            lead["distrito"] = lead["distrito"]["nombre_distrito"] if lead["distrito"] else None
+            lead["provincia"] = lead["provincia"]["nombre_provincia"] if lead["provincia"] else None
+            lead["departamento"] = lead["departamento"]["nombre_departamento"] if lead["departamento"] else None
+            lead["sector"] = lead["sector"]["nombre_sector"] if lead["sector"] else None
+            lead["tipo_documento"] = lead["tipo_documento"]["nombre_tipo"] if lead["tipo_documento"] else None
+
+        # Convertir los leads a un DataFrame de Pandas
+        df = pd.DataFrame(leads_data)
+
+        # Si no hay datos, devolver un error
+        if df.empty:
+            return JsonResponse({"error": "No hay datos para exportar"}, status=400)
+
+        # 🔥 Eliminar la zona horaria de las fechas
+        if "fecha_creacion" in df.columns:
+            df["fecha_creacion"] = pd.to_datetime(df["fecha_creacion"]).dt.tz_localize(None)
+
+        # 🔹 Generar el nombre del archivo con fecha y hora actuales
+        timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        filename = f"leads_{timestamp}"
+
+        # Exportar según el formato solicitado
+        if file_format == 'excel':
+            response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            response['Content-Disposition'] = f'attachment; filename={filename}.xlsx'
+            df.to_excel(response, index=False, engine='openpyxl')
+
+        elif file_format == 'csv':
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename={filename}.csv'
+            df.to_csv(response, index=False, encoding='utf-8')
+
+        elif file_format == 'json':
+            response = JsonResponse(df.to_dict(orient='records'), safe=False)
+
+        else:
+            return JsonResponse({"error": "Formato no soportado"}, status=400)
+
+        return response
+
